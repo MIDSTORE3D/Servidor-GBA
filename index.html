@@ -33,6 +33,25 @@ const $=selector=>document.querySelector(selector);
 const ids={B:0,SELECT:2,START:3,UP:4,DOWN:5,LEFT:6,RIGHT:7,A:8,L:10,R:11};
 const keys=Object.keys(ids), sources=new Map(keys.map(key=>[key,new Set()]));
 let ready=false;
+// Registra o cache local; a primeira ativação passa a controlar o app na próxima navegação.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(err => console.warn('[GBA] Cache local indisponível:', err));
+}
+// Guarda a ROM em CacheStorage antes do início da emulação.
+async function cachedROM(url) {
+  const request = new Request(url.href);
+  let cache;
+  try {
+    cache = await caches.open('gba-roms-v1');
+    const previous = await cache.match(request);
+    if (previous) return previous;
+  } catch (err) { console.warn('[GBA] Cache ROM indisponível:', err); }
+  const response = await fetch(request);
+  if (response.ok && cache) {
+    try { await cache.put(request, response.clone()); } catch (err) { console.warn('[GBA] Não foi possível salvar ROM:', err); }
+  }
+  return response;
+}
 function fail(message){$('#loading').hidden=true;$('#error').hidden=false;$('#errorText').textContent=message;console.error('[GBA]',message)}
 function input(key,source,down){const set=sources.get(key);if(!set)return;if(down){if(set.has(source))return;set.add(source)}else{if(!set.has(source))return;set.delete(source)}if(!ready)return;try{window.EJS_emulator?.gameManager?.simulateInput(0,ids[key],set.size?1:0)}catch(e){console.warn('Controle',e)}}
 function release(source){for(const key of keys)input(key,source,false)}
@@ -47,7 +66,7 @@ document.addEventListener('keydown',e=>{const k=keyboard[e.code];if(!k)return;e.
 window.addEventListener('blur',()=>{for(const set of sources.values())for(const s of [...set])release(s)});
 // ?jogo=nome ou ?jogo=nome.gba; apenas arquivos no diretório jogos/.
 async function gameSelection(){const params=new URLSearchParams(location.search);const id=params.get('jogo')||'001';if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}(?:\.gba)?$/.test(id))throw Error('Nome de jogo inválido. Use letras, números, hífen ou _');const response=await fetch('./jogos/catalogo.json',{cache:'no-store'});const catalog=response.ok?await response.json():{};const item=catalog[id];const filename=item?.arquivo||(id.toLowerCase().endsWith('.gba')?id:id+'.gba');if(typeof filename!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}\.gba$/i.test(filename))throw Error('Nome de arquivo inválido no catálogo.');return {filename,title:item?.nome||id}}
-async function boot(){try{const game=await gameSelection();const rom=new URL('./jogos/'+game.filename,location.href);const test=await fetch(rom,{method:'GET'});if(!test.ok)throw Error('ROM não encontrada: jogos/'+game.filename+' — envie o arquivo .gba para a pasta jogos.');const file=await test.arrayBuffer();if(file.byteLength<192)throw Error('O arquivo GBA parece estar vazio ou incompleto.');document.title=game.title+' · GBA';window.EJS_player='#game';window.EJS_core='gba';window.EJS_gameUrl=rom.href;window.EJS_gameName=game.title;window.EJS_pathtodata='https://cdn.emulatorjs.org/stable/data/';window.EJS_startOnLoaded=true;window.EJS_color='#594e9a';window.EJS_volume=0.85;window.EJS_controlScheme='gba';window.EJS_defaultOptions={shader:'disabled',rewindEnabled:'disabled',fps:'hide',vsync:'disabled'};window.EJS_onGameStart=()=>{ready=true;$('#loading').hidden=true;for(const k of keys)if(sources.get(k).size)window.EJS_emulator?.gameManager?.simulateInput(0,ids[k],1)};const script=document.createElement('script');script.src='https://cdn.emulatorjs.org/stable/data/loader.js';script.onerror=()=>fail('Não foi possível carregar o EmulatorJS. Verifique sua conexão.');document.head.appendChild(script);setTimeout(()=>{if(!ready&&$('#error').hidden)fail('O emulador demorou muito para iniciar.')},60000)}catch(e){fail(e.message||String(e))}}
+async function boot(){try{const game=await gameSelection();const rom=new URL('./jogos/'+game.filename,location.href);const test=await cachedROM(rom);if(!test.ok)throw Error('ROM não encontrada: jogos/'+game.filename+' — envie o arquivo .gba para a pasta jogos.');const file=await test.arrayBuffer();if(file.byteLength<192)throw Error('O arquivo GBA parece estar vazio ou incompleto.');document.title=game.title+' · GBA';window.EJS_player='#game';window.EJS_core='gba';window.EJS_gameUrl=rom.href;window.EJS_gameName=game.title;window.EJS_pathtodata='https://cdn.emulatorjs.org/stable/data/';window.EJS_startOnLoaded=true;window.EJS_color='#594e9a';window.EJS_volume=0.85;window.EJS_controlScheme='gba';window.EJS_defaultOptions={shader:'disabled',rewindEnabled:'disabled',fps:'hide',vsync:'disabled'};window.EJS_onGameStart=()=>{ready=true;$('#loading').hidden=true;for(const k of keys)if(sources.get(k).size)window.EJS_emulator?.gameManager?.simulateInput(0,ids[k],1)};const script=document.createElement('script');script.src='https://cdn.emulatorjs.org/stable/data/loader.js';script.onerror=()=>fail('Não foi possível carregar o EmulatorJS. Verifique sua conexão.');document.head.appendChild(script);setTimeout(()=>{if(!ready&&$('#error').hidden)fail('O emulador demorou muito para iniciar.')},60000)}catch(e){fail(e.message||String(e))}}
 boot();
 </script>
 </body>
