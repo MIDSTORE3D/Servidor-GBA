@@ -17,6 +17,30 @@
 .system{display:flex;gap:9px;align-self:end;padding-bottom:8px}.system button{border:0;border-radius:30px;background:#777b86;color:#fff;font-size:9px;font-weight:bold;padding:9px 8px;min-width:50px}.actions{justify-self:end;display:flex;gap:clamp(8px,2vw,24px);align-items:center;transform:rotate(-18deg);padding:5px}.ab{border:3px solid #332c60;border-radius:50%;width:clamp(52px,12vw,78px);height:clamp(52px,12vw,78px);background:#594e9a;color:#fff;font-size:25px;font-weight:900;box-shadow:inset 0 3px 5px #fff5,0 3px 0 #302b55}.ab:first-child{transform:translateY(13px)}.ab:last-child{transform:translateY(-13px)}
 @media(orientation:landscape) and (max-height:620px){:root{--size:clamp(30px,14vh,54px)}.console{grid-template-columns:minmax(0,1fr) minmax(290px,43%);grid-template-rows:1fr}.display{padding:6px}.bezel{width:100%;height:100%;border-width:7px}.controls{height:100%;min-height:0;border-radius:20px 0 0 20px;border-top:0;border-left:4px solid #eff0f5;padding:8px;align-content:center}.shoulders{margin:0}.shoulder{height:28px}.system{flex-direction:column;gap:4px;padding:0}.system button{padding:6px}.ab{width:clamp(45px,12vh,62px);height:clamp(45px,12vh,62px)}.control-row{gap:2px}}
 @media(max-width:370px){:root{--size:36px}.controls{padding-left:6px;padding-right:6px}.system{gap:3px}.system button{min-width:40px;padding:8px 3px;font-size:8px}.actions{gap:4px}.ab{width:47px;height:47px}}
+
+/* Teste de renderização: ?visual=simples remove custos de pintura do painel */
+html.visual-simples .controls,
+html.visual-simples .controls *,
+html.visual-simples .controls *::before,
+html.visual-simples .controls *::after {
+  box-shadow:none!important;
+  filter:none!important;
+  backdrop-filter:none!important;
+  background-image:none!important;
+  animation:none!important;
+  transition:none!important;
+  text-shadow:none!important;
+  outline:none!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+html.visual-simples .controls{background:#babac2!important;border-color:#d8d8df!important}
+html.visual-simples .shoulder{background:#55515e!important}
+html.visual-simples .dpad::before,html.visual-simples .dpad::after{background:#323642!important}
+html.visual-simples .dir{background:transparent!important}
+html.visual-simples .system button{background:#777b86!important}
+html.visual-simples .ab{background:#594e9a!important}
+html.visual-simples .controls button:active,
+html.visual-simples .controls button:focus{filter:none!important;box-shadow:none!important}
 </style>
 </head>
 <body>
@@ -29,6 +53,7 @@
 </main>
 <script>
 'use strict';
+if(new URLSearchParams(location.search).get('visual')==='simples')document.documentElement.classList.add('visual-simples');
 const $=selector=>document.querySelector(selector);
 // GBA Android: teste de eventos do controle, versão 2026-10-25
 const ids={B:0,SELECT:2,START:3,UP:4,DOWN:5,LEFT:6,RIGHT:7,A:8,L:10,R:11};
