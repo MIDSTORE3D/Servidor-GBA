@@ -30,7 +30,7 @@
 <script>
 'use strict';
 const $=selector=>document.querySelector(selector);
-// Versão de recuperação de cache: 2
+// GBA Android: teste de eventos do controle, versão 2026-10-25
 const ids={B:0,SELECT:2,START:3,UP:4,DOWN:5,LEFT:6,RIGHT:7,A:8,L:10,R:11};
 const keys=Object.keys(ids), sources=new Map(keys.map(key=>[key,new Set()]));
 let ready=false;
@@ -65,7 +65,35 @@ window.addEventListener('unhandledrejection', event => {
 });
 function status(message){const el=document.querySelector('#loadStatus');if(el)el.textContent=message}
 function fail(message){$('#loading').hidden=true;$('#error').hidden=false;$('#errorText').textContent=message;console.error('[GBA]',message)}
-function input(key,source,down){const set=sources.get(key);if(!set)return;if(down){if(set.has(source))return;set.add(source)}else{if(!set.has(source))return;set.delete(source)}if(!ready)return;try{window.EJS_emulator?.gameManager?.simulateInput(0,ids[key],set.size?1:0)}catch(e){console.warn('Controle',e)}}
+// Diagnóstico de controles. ?entrada=semcomando isola a API; ?entrada=quadro agenda transições.
+const entrada=new URLSearchParams(location.search).get('entrada')||'normal';
+const filaEntradas=[];
+let quadroPendente=false;
+function enviarAoMotor(key,down){
+  if(entrada==='semcomando')return;
+  try{window.EJS_emulator?.gameManager?.simulateInput(0,ids[key],down?1:0)}
+  catch(e){console.warn('[GBA] Falha no controle',e)}
+}
+function descarregarFila(){
+  quadroPendente=false;
+  if(!ready||!filaEntradas.length)return;
+  // Um evento por quadro conserva pressionar+soltar mesmo em toques muito rápidos.
+  const [key,down]=filaEntradas.shift();
+  enviarAoMotor(key,down);
+  if(filaEntradas.length){quadroPendente=true;requestAnimationFrame(descarregarFila)}
+}
+function input(key,source,down){
+  const set=sources.get(key);if(!set)return;
+  const antes=set.size>0;
+  if(down){if(set.has(source))return;set.add(source)}
+  else{if(!set.has(source))return;set.delete(source)}
+  const depois=set.size>0;
+  if(!ready||antes===depois)return;
+  if(entrada==='quadro'){
+    filaEntradas.push([key,depois]);
+    if(!quadroPendente){quadroPendente=true;requestAnimationFrame(descarregarFila)}
+  }else enviarAoMotor(key,depois);
+}
 function release(source){for(const key of keys)input(key,source,false)}
 // Um ponteiro por botão; não dispara eventos repetidos enquanto o dedo está imóvel.
 for(const button of document.querySelectorAll('[data-key]')){const key=button.dataset.key;button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);input(key,'p'+e.pointerId,true)});for(const ev of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(ev,e=>input(key,'p'+e.pointerId,false));button.addEventListener('contextmenu',e=>e.preventDefault())}
