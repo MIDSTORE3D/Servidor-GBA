@@ -21,7 +21,7 @@
 </head>
 <body>
 <main class="console">
-<section class="display"><div class="bezel"><div class="screen"><div id="game" class="game"></div><div id="loading" class="overlay"><div class="spinner"></div><span>Carregando Game Boy Advance...</span></div><div id="error" class="overlay" hidden><span id="errorText"></span><button onclick="location.reload()">Tentar novamente</button></div></div></div></section>
+<section class="display"><div class="bezel"><div class="screen"><div id="game" class="game"></div><div id="loading" class="overlay"><div class="spinner"></div><span id="loadStatus">Preparando Game Boy Advance no Android...</span></div><div id="error" class="overlay" hidden><span id="errorText"></span><button onclick="location.reload()">Tentar novamente</button></div></div></div></section>
 <section class="controls" aria-label="Controle Game Boy Advance">
  <div class="shoulders"><button class="shoulder" data-key="L">L</button><button class="shoulder" data-key="R">R</button></div>
  <div class="control-row"><div class="dpad" id="dpad"><button class="dir up" data-dir="UP">▲</button><button class="dir down" data-dir="DOWN">▼</button><button class="dir left" data-dir="LEFT">◀</button><button class="dir right" data-dir="RIGHT">▶</button></div><div class="system"><button data-key="SELECT">SELECT</button><button data-key="START">START</button></div><div class="actions"><button class="ab" data-key="B">B</button><button class="ab" data-key="A">A</button></div></div>
@@ -34,9 +34,21 @@ const $=selector=>document.querySelector(selector);
 const ids={B:0,SELECT:2,START:3,UP:4,DOWN:5,LEFT:6,RIGHT:7,A:8,L:10,R:11};
 const keys=Object.keys(ids), sources=new Map(keys.map(key=>[key,new Set()]));
 let ready=false;
-// Registra o cache local; a primeira ativação passa a controlar o app na próxima navegação.
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'}).catch(err => console.warn('[GBA] Cache local indisponível:', err));
+// Diagnóstico Android: remove o Service Worker anterior sem apagar ROMs salvas.
+// A página usa rede nesta versão, para isolar a causa da tela branca.
+async function recoverOldWorker(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    const registrations=await navigator.serviceWorker.getRegistrations();
+    for(const registration of registrations){
+      if(registration.scope.startsWith(new URL('./',location.href).href))await registration.unregister();
+    }
+    if(navigator.serviceWorker.controller && sessionStorage.getItem('gba-recover-reloaded')!=='1'){
+      sessionStorage.setItem('gba-recover-reloaded','1');
+      location.replace(location.pathname+'?'+new URLSearchParams(location.search).toString()+'&recuperado=1');
+      return new Promise(()=>{});
+    }
+  }catch(e){console.warn('[GBA] Falha na recuperação',e)}
 }
 // O Service Worker faz o cache da ROM e do motor durante os requests do EmulatorJS.
 // Não carregamos uma segunda cópia inteira da ROM na memória do celular.
@@ -46,6 +58,7 @@ window.addEventListener('error', event => {
 window.addEventListener('unhandledrejection', event => {
   if (!ready) fail('Erro de inicialização: '+(event.reason?.message || String(event.reason)));
 });
+function status(message){const el=document.querySelector('#loadStatus');if(el)el.textContent=message}
 function fail(message){$('#loading').hidden=true;$('#error').hidden=false;$('#errorText').textContent=message;console.error('[GBA]',message)}
 function input(key,source,down){const set=sources.get(key);if(!set)return;if(down){if(set.has(source))return;set.add(source)}else{if(!set.has(source))return;set.delete(source)}if(!ready)return;try{window.EJS_emulator?.gameManager?.simulateInput(0,ids[key],set.size?1:0)}catch(e){console.warn('Controle',e)}}
 function release(source){for(const key of keys)input(key,source,false)}
@@ -60,7 +73,10 @@ document.addEventListener('keydown',e=>{const k=keyboard[e.code];if(!k)return;e.
 window.addEventListener('blur',()=>{for(const set of sources.values())for(const s of [...set])release(s)});
 // ?jogo=nome ou ?jogo=nome.gba; apenas arquivos no diretório jogos/.
 async function gameSelection(){const params=new URLSearchParams(location.search);const id=params.get('jogo')||'001';if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}(?:\.gba)?$/.test(id))throw Error('Nome de jogo inválido. Use letras, números, hífen ou _');const response=await fetch('./jogos/catalogo.json',{cache:'no-store'});const catalog=response.ok?await response.json():{};const item=catalog[id];const filename=item?.arquivo||(id.toLowerCase().endsWith('.gba')?id:id+'.gba');if(typeof filename!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}\.gba$/i.test(filename))throw Error('Nome de arquivo inválido no catálogo.');return {filename,title:item?.nome||id}}
-async function boot(){try{const game=await gameSelection();const rom=new URL('./jogos/'+game.filename,location.href);document.title=game.title+' · GBA';window.EJS_player='#game';window.EJS_core='gba';window.EJS_gameUrl=rom.href;window.EJS_gameName=game.title;window.EJS_pathtodata='https://cdn.emulatorjs.org/stable/data/';window.EJS_startOnLoaded=true;window.EJS_color='#594e9a';window.EJS_volume=0.85;window.EJS_controlScheme='gba';window.EJS_defaultOptions={shader:'disabled',rewindEnabled:'disabled',fps:'hide',vsync:'disabled'};window.EJS_onGameStart=()=>{ready=true;$('#loading').hidden=true;for(const k of keys)if(sources.get(k).size)window.EJS_emulator?.gameManager?.simulateInput(0,ids[k],1)};const script=document.createElement('script');script.src='https://cdn.emulatorjs.org/stable/data/loader.js';script.onerror=()=>fail('Não foi possível carregar o EmulatorJS. Verifique sua conexão.');document.head.appendChild(script);setTimeout(()=>{if(!ready&&$('#error').hidden)fail('O emulador não iniciou no celular. Teste limpar os dados deste site no navegador e abrir novamente.')},60000)}catch(e){fail(e.message||String(e))}}
+async function boot(){try{status("Verificando versão local...");await recoverOldWorker();status("Selecionando jogo...");const game=await gameSelection();const rom=new URL('./jogos/'+game.filename,location.href);document.title=game.title+' · GBA';status('Carregando núcleo mGBA...');window.EJS_player='#game';window.EJS_core='gba';window.EJS_gameUrl=rom.href;window.EJS_gameName=game.title;window.EJS_pathtodata='https://cdn.emulatorjs.org/stable/data/';window.EJS_startOnLoaded=true;window.EJS_color='#594e9a';window.EJS_volume=0.85;window.EJS_controlScheme='gba';window.EJS_defaultOptions={shader:'disabled',rewindEnabled:'disabled',fps:'hide',vsync:'disabled'};window.EJS_onGameStart=()=>{ready=true;$('#loading').hidden=true;for(const k of keys)if(sources.get(k).size)window.EJS_emulator?.gameManager?.simulateInput(0,ids[k],1)};const script=document.createElement('script');script.onload=()=>status('Iniciando emulação...');script.src='https://cdn.emulatorjs.org/stable/data/loader.js';script.onerror=()=>fail('Não foi possível carregar o EmulatorJS. Verifique sua conexão.');document.head.appendChild(script);setTimeout(()=>{if(!ready&&$('#error').hidden)fail('Tempo esgotado ao iniciar o mGBA no Android. Teste outro navegador ou veja o console remoto.')},60000)}catch(e){fail(e.message||String(e))}}
+// Detecta problemas que antes deixavam a tela em branco.
+window.addEventListener('error', e => {if(!ready)fail('Falha no Android: '+(e.message||'erro inesperado'))});
+window.addEventListener('unhandledrejection', e => {if(!ready)fail('Falha de inicialização: '+String(e.reason?.message||e.reason))});
 boot();
 </script>
 </body>
