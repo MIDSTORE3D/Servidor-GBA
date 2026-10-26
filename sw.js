@@ -1,20 +1,23 @@
-/* Cache local GBA v1. A ROM é salva pelo index.html; recursos EmulatorJS são salvos ao primeiro uso. */
-const SHELL='gba-shell-v1';
-const ROMS='gba-roms-v1';
-const ENGINE='gba-engine-v1';
-const BASE=new URL('./', self.registration.scope);
-const SHELL_FILES=['./','./index.html','./manifest.webmanifest','./icon.svg','./jogos/catalogo.json'];
+/* GBA PWA v2 - cache estável para GitHub Pages */
+const SHELL='gba-shell-v2';
+const ROMS='gba-roms-v2';
+const ENGINE='gba-engine-v2';
+const BASE=new URL('./',self.registration.scope);
+const ENTRY=new URL('index.html',BASE).href;
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(SHELL);
-    await cache.addAll(SHELL_FILES);
+    // Não impedir a instalação do SW se um único recurso falhar.
+    for(const file of ['index.html','manifest.webmanifest','icon.svg','jogos/catalogo.json']){
+      try{await cache.add(new URL(file,BASE).href)}catch(e){console.warn('[GBA SW] Sem pré-cache de',file,e)}
+    }
     await self.skipWaiting();
   })());
 });
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const keep=new Set([SHELL,ROMS,ENGINE]);
-    for(const name of await caches.keys()) if(name.startsWith('gba-')&&!keep.has(name))await caches.delete(name);
+    for(const name of await caches.keys())if(name.startsWith('gba-')&&!keep.has(name))await caches.delete(name);
     await self.clients.claim();
   })());
 });
@@ -22,27 +25,33 @@ self.addEventListener('fetch',event=>{
   const req=event.request;
   if(req.method!=='GET')return;
   const url=new URL(req.url);
-  const inside=url.origin===BASE.origin&&url.pathname.startsWith(BASE.pathname);
-  const cdn=url.hostname==='cdn.emulatorjs.org'&&url.protocol==='https:';
-  if(!inside&&!cdn)return;
-  // Navegação: pega atualização online; offline usa o HTML salvo.
+  const local=url.origin===BASE.origin&&url.pathname.startsWith(BASE.pathname);
+  const engine=url.protocol==='https:'&&url.hostname==='cdn.emulatorjs.org';
+  if(!local&&!engine)return;
   if(req.mode==='navigate'){
     event.respondWith((async()=>{
-      try {const result=await fetch(req); if(result.ok){const cache=await caches.open(SHELL);await cache.put(new URL('./index.html',BASE),result.clone())}return result}
-      catch {return (await caches.match(new URL('./index.html',BASE)))||Response.error()}
+      try{
+        const network=await fetch(req,{cache:'no-store'});
+        if(network.ok){
+          const cache=await caches.open(SHELL);
+          try{await cache.put(ENTRY,network.clone())}catch{}
+        }
+        return network;
+      }catch{
+        return (await caches.match(ENTRY))||new Response('Offline: abra uma vez com internet.',{status:503,headers:{'content-type':'text/plain; charset=utf-8'}});
+      }
     })());
     return;
   }
-  // EmuladorJS (incluindo .wasm) e ROMs: cache primeiro, rede somente na falta.
-  const isROM=inside&&url.pathname.startsWith(new URL('./jogos/',BASE).pathname)&&/\.gba$/i.test(url.pathname);
-  const name=cdn?ENGINE:isROM?ROMS:SHELL;
+  const rom=local&&url.pathname.startsWith(new URL('jogos/',BASE).pathname)&&/\.gba$/i.test(url.pathname);
+  const name=engine?ENGINE:rom?ROMS:SHELL;
   event.respondWith((async()=>{
     const cache=await caches.open(name);
-    const cached=await cache.match(req);
-    if(cached)return cached;
+    const previous=await cache.match(req);
+    if(previous)return previous;
     const response=await fetch(req);
     if(response.ok||response.type==='opaque'){
-      try{await cache.put(req,response.clone())}catch(err){console.warn('[GBA SW] Sem espaço para cache',err)}
+      try{await cache.put(req,response.clone())}catch(e){console.warn('[GBA SW] Cache indisponível',e)}
     }
     return response;
   })());
