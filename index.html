@@ -13,9 +13,13 @@
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);overscroll-behavior:none}
 body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--fg);user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
-#canvas{position:fixed;inset:0;display:block;width:100%;height:100%;background:#07080d;touch-action:none}
+#canvas{position:fixed;inset:0;display:block;width:100vw;height:100dvh;background:#07080d;touch-action:none}
 #toolbar{position:fixed;top:max(8px,env(safe-area-inset-top));right:8px;z-index:20;display:flex;gap:6px;pointer-events:none}
-#toolbar button{pointer-events:auto;width:38px;height:38px;border:1px solid #b2a9ff47;border-radius:12px;background:#161a2dbe;color:#fff;font-size:19px;cursor:pointer;backdrop-filter:blur(6px)}
+#toolbar button{pointer-events:auto;width:38px;height:38px;border:1px solid #b2a9ff47;border-radius:12px;background:#161a2dbe;color:#fff;font-size:18px;cursor:pointer;backdrop-filter:blur(6px)}
+#hint{position:fixed;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:19;max-width:min(92vw,420px);padding:10px 14px;border-radius:14px;border:1px solid #ffffff1c;background:#10131ccc;color:#ececff;text-align:center;font-size:12px;line-height:1.45;backdrop-filter:blur(6px)}
+#hint[hidden]{display:none!important}
+#hint strong{color:#fff}
+#hint button{margin-top:8px;padding:8px 12px;border:0;border-radius:9px;background:#9489ed;color:#120f24;font-weight:700}
 #menu{position:fixed;z-index:21;top:56px;right:8px;width:min(330px,calc(100vw - 16px));padding:16px;border-radius:16px;border:1px solid #bbb6f13b;background:#171b2ef2;box-shadow:0 12px 42px #0009}
 #menu[hidden],#loading[hidden]{display:none!important}
 #menu h2{font-size:15px;margin:0 0 10px}
@@ -58,13 +62,14 @@ body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(
 </head>
 <body>
 <canvas id="canvas" tabindex="0" aria-label="Emulador SkyEmu Game Boy Advance" oncontextmenu="event.preventDefault()"></canvas>
-<div id="toolbar"><button id="menuButton" type="button" aria-label="Abrir lista de jogos" title="Jogos">☰</button></div>
+<div id="toolbar"><button id="menuButton" type="button" aria-label="Abrir lista de jogos" title="Jogos">☰</button><button id="fullscreenButton" type="button" aria-label="Tela cheia" title="Tela cheia">⛶</button></div>
+<div id="hint" hidden><div><strong>Dica:</strong> toque em <strong>⛶</strong> para abrir em tela cheia. Em celulares, isso deixa o jogo maior e normalmente faz os controles parecerem menores e mais limpos.</div><button id="closeHint" type="button">Entendi</button></div>
 <section id="menu" hidden aria-label="Jogos">
 <h2>Servidor-GBA</h2>
 <label for="gameList">Escolher jogo do catálogo</label>
 <select id="gameList"><option>Carregando catálogo...</option></select>
 <div class="buttons"><button type="button" id="openGame">Abrir jogo</button><button type="button" id="importGame" class="secondary">Abrir arquivo</button></div>
-<p>Os botões de toque são os próprios controles móveis do SkyEmu. Os saves dessa versão não são os mesmos do EmulatorJS.</p>
+<p>Os botões de toque são os próprios controles móveis do SkyEmu. Nesta versão, o site já tenta abrir em tela cheia no celular para deixar o jogo maior. Os saves dessa versão não são os mesmos do EmulatorJS.</p>
 <p>Motor: <a href="https://github.com/skylersaleh/SkyEmu" target="_blank" rel="noopener noreferrer" style="color:#beb7ff">SkyEmu (MIT)</a></p>
 </section>
 <section id="loading" aria-live="polite">
@@ -93,6 +98,31 @@ let runtimeResolve, runtimeReject;
 let nativeRomResolve, nativeRomReject;
 let nativeRomError=false;
 let preloadedRom=null;
+const isMobile=matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+let firstFullscreenAttempted=false;
+function inFullscreen(){return !!(document.fullscreenElement||document.webkitFullscreenElement)}
+async function requestFullscreenMode(){
+ try{
+  const el=document.documentElement;
+  if(!inFullscreen()){
+   if(el.requestFullscreen)await el.requestFullscreen({navigationUI:'hide'});
+   else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
+  }
+ }catch(e){console.warn('[Servidor-GBA] Tela cheia indisponível:',e)}
+ try{ if(screen.orientation&&screen.orientation.lock) await screen.orientation.lock('landscape'); }catch(e){}
+}
+function maybeShowHint(){
+ const dismissed=localStorage.getItem('gbaSkyHintDismissed')==='1';
+ if(isMobile&&!dismissed&&!inFullscreen()) $('#hint').hidden=false;
+}
+function dismissHint(){ $('#hint').hidden=true; localStorage.setItem('gbaSkyHintDismissed','1'); }
+async function tryEnterFullscreenOnce(){
+ if(!isMobile||firstFullscreenAttempted||inFullscreen()) return;
+ firstFullscreenAttempted=true;
+ await requestFullscreenMode();
+ if(inFullscreen()) $('#hint').hidden=true;
+}
+
 const nativeRomStarted=new Promise((resolve,reject)=>{nativeRomResolve=resolve;nativeRomReject=reject});
 function reportSkyOutput(value,isError=false){
  const message=String(value||'');
@@ -159,7 +189,7 @@ async function loadSkyEngine(){
 }
 function status(value){if(!failed&&value)$('#loadStatus').textContent=value}
 function error(message){if(failed)return;failed=true;$('#loadStatus').textContent=message;$('#progress').hidden=true;$('#retry').hidden=false;$('#manualGame').hidden=false;console.error('[Servidor-GBA]',message)}
-function showGame(){ready=true;failed=false;$('#loading').hidden=true;$('#menu').hidden=true;document.getElementById('canvas').focus({preventScroll:true})}
+function showGame(){ready=true;failed=false;$('#loading').hidden=true;$('#menu').hidden=true;document.getElementById('canvas').focus({preventScroll:true});maybeShowHint();if(isMobile)setTimeout(()=>$('#hint').hidden=inFullscreen(),700)}
 function manualFile(){document.getElementById('fileInput').click()}
 function sendFile(file){
  if(typeof Module.sokol_drop!=='function')throw Error('O motor de carregamento ainda não está pronto.');
@@ -241,6 +271,10 @@ var Module={
  monitorRunDependencies(){}
 };
 $('#menuButton').addEventListener('click',()=>{$('#menu').hidden=!$('#menu').hidden});
+$('#fullscreenButton').addEventListener('click',async()=>{await requestFullscreenMode(); if(inFullscreen()) $('#hint').hidden=true;});
+$('#closeHint').addEventListener('click',dismissHint);
+document.addEventListener('pointerdown',()=>{ if(ready) tryEnterFullscreenOnce(); },{passive:true});
+document.addEventListener('fullscreenchange',()=>{ if(inFullscreen()) $('#hint').hidden=true; else maybeShowHint(); });
 $('#openGame').addEventListener('click',()=>{const id=$('#gameList').value;if(!id)return;const url=new URL(location.href);url.searchParams.set('jogo',id);location.assign(url.href)});
 $('#importGame').addEventListener('click',manualFile);
 $('#manualGame').addEventListener('click',manualFile);
