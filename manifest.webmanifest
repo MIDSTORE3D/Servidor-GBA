@@ -1,9 +1,17 @@
 {
-  "name": "Game Boy Advance Web",
-  "short_name": "GBA",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#171a24",
-  "theme_color": "#171a24",
-  "icons": [{"src":"icon.svg","sizes":"any","type":"image/svg+xml"}]
+  "id": "./",
+  "name": "Servidor-GBA — Cartuchos NFC",
+  "short_name": "Servidor-GBA",
+  "start_url": "./?jogo=001",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#10131b",
+  "theme_color": "#10131b",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
 }

@@ -14,29 +14,20 @@
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);overscroll-behavior:none}
 body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--fg);user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
 #canvas{position:fixed;inset:0;display:block;width:100vw;height:100dvh;background:#07080d;touch-action:none}
-#toolbar{position:fixed;top:max(8px,env(safe-area-inset-top));right:8px;z-index:20;display:flex;gap:6px;pointer-events:none}
-#toolbar button{pointer-events:auto;width:38px;height:38px;border:1px solid #b2a9ff47;border-radius:12px;background:#161a2dbe;color:#fff;font-size:18px;cursor:pointer;backdrop-filter:blur(6px)}
-#hint{position:fixed;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:19;max-width:min(92vw,420px);padding:10px 14px;border-radius:14px;border:1px solid #ffffff1c;background:#10131ccc;color:#ececff;text-align:center;font-size:12px;line-height:1.45;backdrop-filter:blur(6px)}
-#hint[hidden]{display:none!important}
-#hint strong{color:#fff}
-#hint button{margin-top:8px;padding:8px 12px;border:0;border-radius:9px;background:#9489ed;color:#120f24;font-weight:700}
-#menu{position:fixed;z-index:21;top:56px;right:8px;width:min(330px,calc(100vw - 16px));padding:16px;border-radius:16px;border:1px solid #bbb6f13b;background:#171b2ef2;box-shadow:0 12px 42px #0009}
-#menu[hidden],#loading[hidden]{display:none!important}
-#menu h2{font-size:15px;margin:0 0 10px}
-#menu label{display:block;color:#bec2db;font-size:12px;margin-bottom:6px}
-#gameList{width:100%;padding:10px;border-radius:9px;background:#292d43;color:#fff;border:1px solid #5b5c78}
-#menu .buttons{display:flex;gap:8px;margin-top:10px}
-#menu button,#loading button{padding:10px 12px;border:0;border-radius:9px;background:var(--accent);color:#100e21;font-weight:700;cursor:pointer}
-#menu button.secondary{background:#393e59;color:white}
-#menu p{margin:12px 0 0;color:#b8bad0;font-size:12px}
+/* No modo NFC, o canto do menu nativo do SkyEmu vira somente um botão de tela cheia.
+   A interface de escolha de ROMs não é mostrada ao jogador. ?configurar=1 libera
+   temporariamente a interface nativa para ajustar escala/opacidade dos controles. */
+#fullscreenButton{position:fixed;top:max(2px,env(safe-area-inset-top));left:max(2px,env(safe-area-inset-left));z-index:25;width:56px;height:46px;padding:0;border:0;border-radius:0 0 10px 0;background:#202020;color:#eee;font-size:25px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#fullscreenButton[hidden]{display:none!important}
+#fullscreenButton:focus-visible{outline:2px solid #9489ed;outline-offset:2px}
 #loading{position:fixed;z-index:30;inset:0;display:grid;place-content:center;gap:14px;padding:22px;text-align:center;background:#0e101ae8}
 #loading h1{font-size:19px;line-height:1.3;margin:0}
 #loading p{max-width:390px;line-height:1.5;color:#c5c4da;margin:0 auto;overflow-wrap:anywhere}
+#loading button{padding:10px 12px;border:0;border-radius:9px;background:var(--accent);color:#100e21;font-weight:700;cursor:pointer}
 #loading .actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
 #loading button.secondary{background:#353a54;color:#f6f6ff}
 #loading progress{width:min(320px,76vw);height:7px;accent-color:#9b8ff7;margin:0 auto}
 #loading progress[hidden]{display:none}
-#fileInput{display:none}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 </style>
 <!--
@@ -62,28 +53,20 @@ body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(
 </head>
 <body>
 <canvas id="canvas" tabindex="0" aria-label="Emulador SkyEmu Game Boy Advance" oncontextmenu="event.preventDefault()"></canvas>
-<div id="toolbar"><button id="menuButton" type="button" aria-label="Abrir lista de jogos" title="Jogos">☰</button><button id="fullscreenButton" type="button" aria-label="Tela cheia" title="Tela cheia">⛶</button></div>
-<div id="hint" hidden><div><strong>Dica:</strong> toque em <strong>⛶</strong> para abrir em tela cheia. Em celulares, isso deixa o jogo maior e normalmente faz os controles parecerem menores e mais limpos.</div><button id="closeHint" type="button">Entendi</button></div>
-<section id="menu" hidden aria-label="Jogos">
-<h2>Servidor-GBA</h2>
-<label for="gameList">Escolher jogo do catálogo</label>
-<select id="gameList"><option>Carregando catálogo...</option></select>
-<div class="buttons"><button type="button" id="openGame">Abrir jogo</button><button type="button" id="importGame" class="secondary">Abrir arquivo</button></div>
-<p>Os botões de toque são os próprios controles móveis do SkyEmu. Nesta versão, o site já tenta abrir em tela cheia no celular para deixar o jogo maior. Os saves dessa versão não são os mesmos do EmulatorJS.</p>
-<p>Motor: <a href="https://github.com/skylersaleh/SkyEmu" target="_blank" rel="noopener noreferrer" style="color:#beb7ff">SkyEmu (MIT)</a></p>
-</section>
+<button id="fullscreenButton" type="button" aria-label="Abrir tela cheia" title="Tela cheia">⛶</button>
 <section id="loading" aria-live="polite">
 <h1>Servidor-GBA · SkyEmu</h1>
 <p id="loadStatus">Preparando o emulador...</p>
 <progress id="progress" hidden></progress>
-<div class="actions"><button type="button" id="retry" hidden>Recarregar</button><button type="button" id="manualGame" class="secondary" hidden>Abrir jogo do celular</button></div>
+<div class="actions"><button type="button" id="retry" hidden>Recarregar</button></div>
 </section>
-<input id="fileInput" type="file" accept=".gba,.gb,.gbc,.zip" aria-label="Escolher ROM local">
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
 const opts=new URLSearchParams(location.search);
-// Compilação web oficial do SkyEmu, fixa no commit da distribuição gh-pages.
+const modoConfiguracao=opts.get('configurar')==='1';
+if(modoConfiguracao)document.querySelector('#fullscreenButton').hidden=true;
+// SkyEmu compilado, mantido intacto; menu nativo parcialmente encoberto no modo NFC.
 // Os JS/WASM são validados antes de iniciar o motor; ROM é carregada via argv na inicialização.
 const SKY_REF='155cb39a6ec3e32d2fe92b3e2f6c31333b87bd56';
 const SKY_SOURCES=[
@@ -94,36 +77,30 @@ let skySource=SKY_SOURCES[0];
 const gameIDs=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}(?:\.gba)?$/;
 const fileNames=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}\.gba$/i;
 let catalog={}, ready=false, failed=false;
-let runtimeResolve, runtimeReject;
-let nativeRomResolve, nativeRomReject;
+let runtimeResolve;
+let nativeRomResolve;
 let nativeRomError=false;
 let preloadedRom=null;
 const isMobile=matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 let firstFullscreenAttempted=false;
-function inFullscreen(){return !!(document.fullscreenElement||document.webkitFullscreenElement)}
+function inFullscreen(){return !!(document.fullscreenElement||document.webkitFullscreenElement||matchMedia('(display-mode:fullscreen)').matches)}
 async function requestFullscreenMode(){
+ // Navegadores móveis exigem ativação do usuário. Não promete tela cheia no carregamento de uma aba.
+ if(inFullscreen())return;
  try{
   const el=document.documentElement;
-  if(!inFullscreen()){
-   if(el.requestFullscreen)await el.requestFullscreen({navigationUI:'hide'});
-   else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
-  }
- }catch(e){console.warn('[Servidor-GBA] Tela cheia indisponível:',e)}
- try{ if(screen.orientation&&screen.orientation.lock) await screen.orientation.lock('landscape'); }catch(e){}
+  if(el.requestFullscreen)await el.requestFullscreen({navigationUI:'hide'});
+  else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
+ }catch(e){console.warn('[Servidor-GBA] Tela cheia requer interação ou instalação como aplicativo.',e)}
 }
-function maybeShowHint(){
- const dismissed=localStorage.getItem('gbaSkyHintDismissed')==='1';
- if(isMobile&&!dismissed&&!inFullscreen()) $('#hint').hidden=false;
-}
-function dismissHint(){ $('#hint').hidden=true; localStorage.setItem('gbaSkyHintDismissed','1'); }
 async function tryEnterFullscreenOnce(){
- if(!isMobile||firstFullscreenAttempted||inFullscreen()) return;
+ if(!isMobile||firstFullscreenAttempted||inFullscreen()||modoConfiguracao) return;
  firstFullscreenAttempted=true;
  await requestFullscreenMode();
- if(inFullscreen()) $('#hint').hidden=true;
+ 
 }
 
-const nativeRomStarted=new Promise((resolve,reject)=>{nativeRomResolve=resolve;nativeRomReject=reject});
+const nativeRomStarted=new Promise(resolve=>{nativeRomResolve=resolve});
 function reportSkyOutput(value,isError=false){
  const message=String(value||'');
  if(isError)console.error('[SkyEmu]',message);else console.log('[SkyEmu]',message);
@@ -136,14 +113,13 @@ function reportSkyOutput(value,isError=false){
   setTimeout(()=>{if(!nativeRomError)nativeRomResolve()},350);
  }
 }
-const engineReady=new Promise((resolve,reject)=>{runtimeResolve=resolve;runtimeReject=reject});
+const engineReady=new Promise(resolve=>{runtimeResolve=resolve});
 // Evita uma promessa sem fim caso a inicialização do WebAssembly falhe sem erro visível.
 function deadline(promise, ms, message){
  let timer;
  return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(message)),ms)})])
    .finally(()=>clearTimeout(timer));
 }
-function pause(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 async function fetchAsset(url,deadlineMs){
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),deadlineMs);
@@ -188,46 +164,22 @@ async function loadSkyEngine(){
  throw Error('Não foi possível baixar o SkyEmu. '+diagnostics.join(' | ')+' Verifique a conexão ou o bloqueio das fontes externas.');
 }
 function status(value){if(!failed&&value)$('#loadStatus').textContent=value}
-function error(message){if(failed)return;failed=true;$('#loadStatus').textContent=message;$('#progress').hidden=true;$('#retry').hidden=false;$('#manualGame').hidden=false;console.error('[Servidor-GBA]',message)}
-function showGame(){ready=true;failed=false;$('#loading').hidden=true;$('#menu').hidden=true;document.getElementById('canvas').focus({preventScroll:true});maybeShowHint();if(isMobile)setTimeout(()=>$('#hint').hidden=inFullscreen(),700)}
-function manualFile(){document.getElementById('fileInput').click()}
-function sendFile(file){
- if(typeof Module.sokol_drop!=='function')throw Error('O motor de carregamento ainda não está pronto.');
- if(!file||!/\.(gba|gb|gbc|zip)$/i.test(file.name))throw Error('Formato de jogo inválido.');
- // Usado somente para arquivos escolhidos manualmente após a inicialização.
- Module.sokol_drop({dataTransfer:{files:[file]},clientX:0,clientY:0,stopPropagation(){},preventDefault(){}});
- showGame();
-}
+function error(message){if(failed)return;failed=true;$('#loadStatus').textContent=message;$('#progress').hidden=true;$('#retry').hidden=false;console.error('[Servidor-GBA]',message)}
+function showGame(){ready=true;failed=false;$('#loading').hidden=true;document.getElementById('canvas').focus({preventScroll:true})}
 async function getCatalog(){
- try{
-  const response=await fetch('./jogos/catalogo.json',{cache:'no-store'});
-  if(!response.ok)throw Error('Catálogo não encontrado');
-  const data=await response.json();
-  if(!data||typeof data!=='object'||Array.isArray(data))throw Error('Catálogo inválido');
-  catalog=data;
- }catch(e){console.warn('[Servidor-GBA] Catálogo indisponível:',e);catalog={}}
- const list=$('#gameList');list.replaceChildren();
- for(const [id,entry] of Object.entries(catalog)){
-  if(!gameIDs.test(id)||!entry||typeof entry.arquivo!=='string'||!fileNames.test(entry.arquivo))continue;
-  const option=document.createElement('option');option.value=id;option.textContent=String(entry.nome||id).slice(0,100);list.add(option)
- }
- if(!list.options.length){const opt=document.createElement('option');opt.text='Nenhum jogo no catálogo';opt.value='';list.add(opt)}
- const id=opts.get('jogo')||'001';if([...list.options].some(o=>o.value===id))list.value=id;
+ const response=await fetch('./jogos/catalogo.json',{cache:'no-store'});
+ if(!response.ok)throw Error('Catálogo de jogos indisponível (HTTP '+response.status+').');
+ const data=await response.json();
+ if(!data||typeof data!=='object'||Array.isArray(data))throw Error('Catálogo inválido.');
+ catalog=data;
 }
 function gameInfo(){
  const id=opts.get('jogo')||'001';
- if(!gameIDs.test(id))throw Error('Identificador de jogo inválido.');
- const entry=catalog[id];const fallback=id.toLowerCase().endsWith('.gba')?id:id+'.gba';
- const file=(entry&&entry.arquivo)||fallback;
- if(typeof file!=='string'||!fileNames.test(file))throw Error('Nome de jogo inválido.');
- return {file,name:String(entry?.nome||id)};
-}
-async function waitForDrop(timeoutMs=30000){
- const start=performance.now();await deadline(engineReady,60000,'SkyEmu não concluiu a inicialização. O motor WebAssembly pode estar incompatível ou ter sido interrompido pelo navegador.');
- while(typeof Module.sokol_drop!=='function'){
-  if(performance.now()-start>timeoutMs)throw Error('SkyEmu iniciou, mas não disponibilizou o carregador de jogos.');
-  await new Promise(r=>setTimeout(r,100));
- }
+ if(!gameIDs.test(id))throw Error('Identificador do cartucho NFC inválido.');
+ const entry=catalog[id];
+ if(!entry||typeof entry.arquivo!=='string')throw Error('Cartucho não cadastrado: '+id+'. Confira jogos/catalogo.json.');
+ if(!fileNames.test(entry.arquivo))throw Error('Arquivo inválido no catálogo: '+id+'.');
+ return {file:entry.arquivo,name:String(entry.nome||id).slice(0,120)};
 }
 async function bootGame(){
  try{
@@ -270,20 +222,12 @@ var Module={
  setStatus(text){if(text&&text!=='Running...')status(text)},
  monitorRunDependencies(){}
 };
-$('#menuButton').addEventListener('click',()=>{$('#menu').hidden=!$('#menu').hidden});
-$('#fullscreenButton').addEventListener('click',async()=>{await requestFullscreenMode(); if(inFullscreen()) $('#hint').hidden=true;});
-$('#closeHint').addEventListener('click',dismissHint);
-document.addEventListener('pointerdown',()=>{ if(ready) tryEnterFullscreenOnce(); },{passive:true});
-document.addEventListener('fullscreenchange',()=>{ if(inFullscreen()) $('#hint').hidden=true; else maybeShowHint(); });
-$('#openGame').addEventListener('click',()=>{const id=$('#gameList').value;if(!id)return;const url=new URL(location.href);url.searchParams.set('jogo',id);location.assign(url.href)});
-$('#importGame').addEventListener('click',manualFile);
-$('#manualGame').addEventListener('click',manualFile);
+// O jogador não escolhe ROMs: a tag NFC define ?jogo=ID. Sem menu de seleção no HTML.
+$('#fullscreenButton').addEventListener('click',()=>{requestFullscreenMode()});
+// Ao tocar no jogo em aba comum, Chrome pode permitir a entrada em tela cheia.
+// Em instalação PWA com "display: fullscreen", a tela cheia é aplicada na abertura.
+document.addEventListener('pointerdown',event=>{if(event.target===document.querySelector('#fullscreenButton'))return;tryEnterFullscreenOnce()},{passive:true,capture:true});
 $('#retry').addEventListener('click',()=>location.reload());
-$('#fileInput').addEventListener('change',async e=>{
- const file=e.target.files?.[0];if(!file)return;
- try{status('Preparando arquivo local...');$('#loading').hidden=false;await waitForDrop();sendFile(file)}catch(err){error(err.message||String(err))}
- e.target.value='';
-});
 window.addEventListener('error',event=>{if(!ready)error('Falha ao iniciar o SkyEmu: '+(event.message||'erro no navegador'))});
 window.addEventListener('unhandledrejection',event=>{if(!ready)error('Falha no SkyEmu: '+String(event.reason?.message||event.reason))});
 // Os arquivos ficam apenas no cache do navegador, sem acréscimos ao repositório.
