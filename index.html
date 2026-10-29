@@ -83,12 +83,11 @@ let preloadedRom=null;
 
 // Perfil visual dos controles nativos do SkyEmu, sem sobrepor botões HTML.
 // O SkyEmu guarda os ajustes em /offline/user_settings.bin (estrutura de 1024 bytes).
-// Depois que o IDBFS carrega as preferências anteriores, aplicamos o perfil uma
-// única vez por navegador, preservando as demais preferências do jogador.
-const TOUCH_PROFILE_KEY='ServidorGBA_touch_profile_2026_01';
+// Depois que o IndexedDB é restaurado, verifica os valores EM TODA abertura.
+// Não usamos uma trava no localStorage: ela impedia recuperar configurações
+// revertidas pelo SkyEmu, especialmente após as trocas de jogos/cartuchos.
 function setInitialTouchProfile(){
  try{
-  try{if(localStorage.getItem(TOUCH_PROFILE_KEY)==='applied')return;}catch(e){}
   const path='/offline/user_settings.bin';
   let data=null;
   try{data=FS.readFile(path);}catch(e){}
@@ -117,22 +116,26 @@ function setInitialTouchProfile(){
   const version=v.getUint32(12,true);
   // Estrutura reconhecida nesta compilação; não mexer em dados inesperados.
   if(version<2||version>4){console.warn('[Servidor-GBA] Preferências em formato anterior; mantendo os valores existentes.');return;}
-  v.setUint32(56,0,true); // Hide when inactive: desligado, botões sempre visíveis
-  v.setFloat32(60,0.85,true); // Opacity: botões mais nítidos
-  v.setFloat32(72,0.80,true); // Scale: botões menores
+  const needsUpdate=fresh||v.getUint32(56,true)!==0||
+    Math.abs(v.getFloat32(60,true)-0.85)>0.001||
+    Math.abs(v.getFloat32(72,true)-0.80)>0.001;
+  if(!needsUpdate)return; // Já está correto; não faz gravação desnecessária.
+  v.setUint32(56,0,true); // Hide when inactive: desligado, sempre visíveis
+  v.setFloat32(60,0.85,true); // Opacity: 85%
+  v.setFloat32(72,0.80,true); // Scale: 80%
   FS.writeFile(path,data);
-  try{localStorage.setItem(TOUCH_PROFILE_KEY,'applied');}catch(e){}
   // Persiste o perfil no IndexedDB. O arquivo é gerenciado pelo próprio SkyEmu.
   setTimeout(()=>{
    try{FS.syncfs(false,function(err){if(err)console.warn('[Servidor-GBA] Não foi possível guardar os controles:',err);});}
    catch(e){console.warn('[Servidor-GBA] Salvamento dos controles:',e);}
-  },100);
+  },150);
   console.log('[Servidor-GBA] Controles nativos ajustados: escala 0,80; opacidade 0,85; sempre visíveis.');
  }catch(e){console.warn('[Servidor-GBA] Ajuste de controles indisponível; motor mantido intacto.',e);}
 }
 function hookTouchProfile(){
  // A build oficial chama FS.syncfs(true) antes de recarregar as configurações.
- // Interceptamos somente essa primeira sincronização; ROM, saves e core ficam intactos.
+ // Interceptamos somente a restauração inicial; ROM, saves e core ficam intactos.
+ // Antes de o motor ler user_settings.bin, conferimos os três valores.
  const nativeSync=FS.syncfs;
  let armed=true;
  FS.syncfs=function(populate,callback){
