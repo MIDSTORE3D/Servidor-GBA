@@ -78,14 +78,71 @@ body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(
 'use strict';
 const $=s=>document.querySelector(s);
 const opts=new URLSearchParams(location.search);
-const ENGINE_BASE='https://cdn.jsdelivr.net/gh/skylersaleh/SkyEmu@155cb39a6ec3e32d2fe92b3e2f6c31333b87bd56/';
+// Compilação web oficial do SkyEmu, fixa no commit da distribuição gh-pages.
+// Os JS/WASM são baixados uma única vez e validados antes de iniciar o motor.
+const SKY_REF='155cb39a6ec3e32d2fe92b3e2f6c31333b87bd56';
+const SKY_SOURCES=[
+  'https://cdn.jsdelivr.net/gh/skylersaleh/SkyEmu@'+SKY_REF+'/',
+  'https://raw.githubusercontent.com/skylersaleh/SkyEmu/'+SKY_REF+'/'
+];
+let skySource=SKY_SOURCES[0];
 const gameIDs=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}(?:\.gba)?$/;
 const fileNames=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}\.gba$/i;
 let catalog={}, ready=false, failed=false;
-let runtimeResolve;
-const engineReady=new Promise(resolve=>runtimeResolve=resolve);
+let runtimeResolve, runtimeReject;
+const engineReady=new Promise((resolve,reject)=>{runtimeResolve=resolve;runtimeReject=reject});
+// Evita uma promessa sem fim caso a inicialização do WebAssembly falhe sem erro visível.
+function deadline(promise, ms, message){
+ let timer;
+ return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error(message)),ms)})])
+   .finally(()=>clearTimeout(timer));
+}
+function pause(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+async function fetchAsset(url,deadlineMs){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),deadlineMs);
+ try{
+  const res=await fetch(url,{signal:controller.signal,cache:'force-cache',mode:'cors'});
+  if(!res.ok)throw Error('HTTP '+res.status);
+  return await res.arrayBuffer();
+ }finally{clearTimeout(timer)}
+}
+async function loadSkyEngine(){
+ let diagnostics=[];
+ for(let idx=0;idx<SKY_SOURCES.length;idx++){
+  const base=SKY_SOURCES[idx];
+  status(idx?'Tentando fonte alternativa do SkyEmu...':'Baixando motor SkyEmu...');
+  try{
+   // Não executa JavaScript remoto enquanto não tivermos o WebAssembly correspondente.
+   const [jsData,wasmData]=await Promise.all([
+    fetchAsset(base+'SkyEmu.js',30000),fetchAsset(base+'SkyEmu.wasm',45000)
+   ]);
+   const magic=new Uint8Array(wasmData,0,Math.min(4,wasmData.byteLength));
+   if(magic.length!==4||magic[0]!==0||magic[1]!==97||magic[2]!==115||magic[3]!==109)
+    throw Error('O arquivo WASM recebido não é válido.');
+   const code=new TextDecoder().decode(jsData);
+   if(!code.includes('sapp_js_add_dragndrop_listeners'))throw Error('A versão JavaScript recebida não corresponde ao motor esperado.');
+   skySource=base;
+   Module.wasmBinary=new Uint8Array(wasmData); // elimina a segunda busca de WASM
+   status('Inicializando SkyEmu...');
+   await new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
+    const script=document.createElement('script');
+    script.src=url;script.async=true;
+    script.onload=()=>{URL.revokeObjectURL(url);resolve()};
+    script.onerror=()=>{URL.revokeObjectURL(url);reject(Error('Falha ao executar o JavaScript do motor.'))};
+    document.head.appendChild(script);
+   });
+   return;
+  }catch(e){
+   diagnostics.push('Fonte '+(idx+1)+': '+(e.name==='AbortError'?'tempo esgotado':e.message));
+   console.warn('[Servidor-GBA] Motor indisponível:',base,e);
+  }
+ }
+ throw Error('Não foi possível baixar o SkyEmu. '+diagnostics.join(' | ')+' Verifique a conexão ou o bloqueio das fontes externas.');
+}
 function status(value){if(!failed&&value)$('#loadStatus').textContent=value}
-function error(message){failed=true;$('#loadStatus').textContent=message;$('#progress').hidden=true;$('#retry').hidden=false;$('#manualGame').hidden=false;console.error('[Servidor-GBA]',message)}
+function error(message){if(failed)return;failed=true;$('#loadStatus').textContent=message;$('#progress').hidden=true;$('#retry').hidden=false;$('#manualGame').hidden=false;console.error('[Servidor-GBA]',message)}
 function showGame(){ready=true;failed=false;$('#loading').hidden=true;$('#menu').hidden=true;document.getElementById('canvas').focus({preventScroll:true})}
 function manualFile(){document.getElementById('fileInput').click()}
 function sendFile(file){
@@ -120,7 +177,7 @@ function gameInfo(){
  return {file,name:String(entry?.nome||id)};
 }
 async function waitForDrop(timeoutMs=30000){
- const start=performance.now();await engineReady;
+ const start=performance.now();await deadline(engineReady,60000,'SkyEmu não concluiu a inicialização. O motor WebAssembly pode estar incompatível ou ter sido interrompido pelo navegador.');
  while(typeof Module.sokol_drop!=='function'){
   if(performance.now()-start>timeoutMs)throw Error('SkyEmu iniciou, mas não disponibilizou o carregador de jogos.');
   await new Promise(r=>setTimeout(r,100));
@@ -136,7 +193,6 @@ async function bootGame(){
   if(!response.ok)throw Error('Não encontrei o arquivo jogos/'+game.file+' (HTTP '+response.status+').');
   const blob=await response.blob();
   if(!blob.size)throw Error('O arquivo de jogo está vazio.');
-  status('Inicializando SkyEmu...');
   await waitForDrop();
   status('Abrindo '+game.name+'...');
   sendFile(new File([blob],game.file,{type:'application/octet-stream'}));
@@ -145,7 +201,7 @@ async function bootGame(){
 // A compilação oficial web do SkyEmu usa este objeto global antes do SkyEmu.js.
 var Module={
  canvas:$('#canvas'),
- locateFile(name){return ENGINE_BASE+name},
+ locateFile(name){return skySource+name},
  print(text){console.log('[SkyEmu]',text)},
  printErr(text){console.error('[SkyEmu]',text)},
  onRuntimeInitialized(){runtimeResolve()},
@@ -164,12 +220,12 @@ $('#fileInput').addEventListener('change',async e=>{
 });
 window.addEventListener('error',event=>{if(!ready)error('Falha ao iniciar o SkyEmu: '+(event.message||'erro no navegador'))});
 window.addEventListener('unhandledrejection',event=>{if(!ready)error('Falha no SkyEmu: '+String(event.reason?.message||event.reason))});
-// O site usa apenas o JS/WASM remoto, sem cache de duas ROMs nem arquivos extras.
-const skyScript=document.createElement('script');
-skyScript.src=ENGINE_BASE+'SkyEmu.js';
-skyScript.async=true;
-skyScript.onerror=()=>error('Não foi possível carregar SkyEmu.js. Verifique sua conexão ou o acesso à CDN.');
-document.head.appendChild(skyScript);
+// Os arquivos ficam apenas no cache do navegador, sem acréscimos ao repositório.
+// Se a CDN falhar, tenta o conteúdo bruto da mesma revisão do GitHub.
+loadSkyEngine().catch(e=>{
+ error(e.message||String(e));
+ runtimeReject(e);
+});
 bootGame();
 </script>
 </body>
