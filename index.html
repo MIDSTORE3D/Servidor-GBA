@@ -8,39 +8,67 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Game Boy Advance</title>
 <style>
-:root{--body:#b9b9c2;--edge:#757986;--ink:#252632;--violet:#534a86;--button:#514987;--size:clamp(38px,9.5vw,66px)}
-*{box-sizing:border-box}html,body{height:100%;width:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:#171a24}body{font-family:Arial,Helvetica,sans-serif;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}button{font-family:inherit;touch-action:none;cursor:pointer}button:focus-visible{outline:2px solid #ffee8a;outline-offset:3px}
-.console{height:100vh;height:100dvh;width:100vw;display:grid;grid-template-rows:minmax(0,1fr) auto;background:radial-gradient(ellipse at center,#333948,#14161e)}
-.display{min-height:0;display:grid;place-items:center;padding:clamp(8px,2vmin,20px)}.bezel{position:relative;width:min(100%,calc((100dvh - 200px)*1.65));height:100%;max-width:1100px;min-height:0;background:#080a0b;border:clamp(8px,1.5vmin,17px) solid #2e323b;border-radius:13px;overflow:hidden;box-shadow:inset 0 0 0 2px #555b64,0 10px 30px #0009}.screen{height:100%;width:100%;position:relative;background:#000}.game{height:100%;width:100%;background:#000}.game.ejs_parent{height:100%!important;width:100%!important;min-height:0!important}.game .ejs_canvas_parent,.game .ejs_canvas{height:100%!important;width:100%!important}.game .ejs_canvas{object-fit:contain!important;image-rendering:pixelated}.game .ejs_virtualGamepad_parent,.game .ejs_menu_bar,.game .ejs_settings_parent,.game .ejs_popup_container,.game .ejs_context_menu{display:none!important}
-.overlay{position:absolute;inset:0;z-index:9;background:#050505;display:grid;place-content:center;text-align:center;color:#eee;padding:16px;gap:10px;font-size:14px}.overlay[hidden]{display:none!important}.overlay button{background:#55518a;color:#fff;border:0;border-radius:10px;padding:10px 16px}.spinner{height:26px;width:26px;border:3px solid #444;border-top-color:#e1dfff;border-radius:50%;animation:spin .8s linear infinite;margin:auto}@keyframes spin{to{transform:rotate(360deg)}}
-.controls{background:linear-gradient(155deg,#d4d4dd,#a3a5af);border-top:4px solid #eff0f5;border-radius:22px 22px 0 0;box-shadow:inset 0 3px 6px #fff8;min-height:185px;padding:9px 12px max(12px,env(safe-area-inset-bottom));display:grid;grid-template-rows:auto 1fr;gap:5px;touch-action:none}.shoulders{display:flex;justify-content:space-between;gap:16px;max-width:860px;width:100%;margin:auto}.shoulder{height:31px;width:clamp(85px,19vw,150px);border:0;border-radius:15px 15px 8px 8px;color:#fff;font-size:12px;font-weight:900;background:#55515e;box-shadow:inset 0 2px 3px #ffffff50,0 3px 3px #0004}.control-row{width:min(100%,860px);margin:auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;min-width:0}.dpad{position:relative;width:calc(var(--size)*3);height:calc(var(--size)*3);justify-self:start;touch-action:none}.dpad:before,.dpad:after{content:"";position:absolute;background:#323642;border-radius:7px;box-shadow:inset 0 2px 3px #ffffff29,0 3px 3px #0007}.dpad:before{left:0;top:33.333%;width:100%;height:33.333%}.dpad:after{left:33.333%;top:0;width:33.333%;height:100%}.dir{position:absolute;background:transparent;border:0;color:#a0a5b3;font-size:20px;font-weight:bold;width:var(--size);height:var(--size);z-index:1}.up{top:0;left:33.333%}.down{bottom:0;left:33.333%}.left{top:33.333%;left:0}.right{top:33.333%;right:0}
-.system{display:flex;gap:9px;align-self:end;padding-bottom:8px}.system button{border:0;border-radius:30px;background:#777b86;color:#fff;font-size:9px;font-weight:bold;padding:9px 8px;min-width:50px}.actions{justify-self:end;display:flex;gap:clamp(8px,2vw,24px);align-items:center;transform:rotate(-18deg);padding:5px}.ab{border:3px solid #332c60;border-radius:50%;width:clamp(52px,12vw,78px);height:clamp(52px,12vw,78px);background:#594e9a;color:#fff;font-size:25px;font-weight:900;box-shadow:inset 0 3px 5px #fff5,0 3px 0 #302b55}.ab:first-child{transform:translateY(13px)}.ab:last-child{transform:translateY(-13px)}
-@media(orientation:landscape) and (max-height:620px){:root{--size:clamp(30px,14vh,54px)}.console{grid-template-columns:minmax(0,1fr) minmax(290px,43%);grid-template-rows:1fr}.display{padding:6px}.bezel{width:100%;height:100%;border-width:7px}.controls{height:100%;min-height:0;border-radius:20px 0 0 20px;border-top:0;border-left:4px solid #eff0f5;padding:8px;align-content:center}.shoulders{margin:0}.shoulder{height:28px}.system{flex-direction:column;gap:4px;padding:0}.system button{padding:6px}.ab{width:clamp(45px,12vh,62px);height:clamp(45px,12vh,62px)}.control-row{gap:2px}}
-@media(max-width:370px){:root{--size:36px}.controls{padding-left:6px;padding-right:6px}.system{gap:3px}.system button{min-width:40px;padding:8px 3px;font-size:8px}.actions{gap:4px}.ab{width:47px;height:47px}}
-
-/* Teste de renderização: ?visual=simples remove custos de pintura do painel */
-html.visual-simples .controls,
-html.visual-simples .controls *,
-html.visual-simples .controls *::before,
-html.visual-simples .controls *::after {
-  box-shadow:none!important;
-  filter:none!important;
-  backdrop-filter:none!important;
-  background-image:none!important;
-  animation:none!important;
-  transition:none!important;
-  text-shadow:none!important;
-  outline:none!important;
-  -webkit-tap-highlight-color:transparent!important;
+:root{--body:#b9b9c2;--edge:#757986;--ink:#252632;--violet:#534a86;--button:#514987;--size:clamp(38px,9.5vw,66px);--control-opacity:.42}
+*{box-sizing:border-box}
+html,body{height:100%;width:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:#08090f}
+body{font-family:Arial,Helvetica,sans-serif;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+button{font-family:inherit;touch-action:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible{outline:2px solid #ffee8a;outline-offset:3px}
+.console{position:relative;height:100vh;height:100dvh;width:100vw;overflow:hidden;display:block;background:#050505;isolation:isolate}
+.display{position:absolute;inset:0;display:grid;place-items:center;min-height:0;padding:0}
+.bezel{position:relative;width:100%;height:100%;min-height:0;background:#000;border:0;border-radius:0;overflow:hidden;box-shadow:none}
+.screen{height:100%;width:100%;position:relative;background:#000}
+.game{height:100%;width:100%;background:#000}
+.game.ejs_parent{height:100%!important;width:100%!important;min-height:0!important}
+.game .ejs_canvas_parent,.game .ejs_canvas{height:100%!important;width:100%!important}
+.game .ejs_canvas{object-fit:contain!important;image-rendering:pixelated}
+.game .ejs_virtualGamepad_parent,.game .ejs_menu_bar,.game .ejs_settings_parent,.game .ejs_popup_container,.game .ejs_context_menu{display:none!important}
+.overlay{position:absolute;inset:0;z-index:9;background:#050505;display:grid;place-content:center;text-align:center;color:#eee;padding:16px;gap:10px;font-size:14px}
+.overlay[hidden]{display:none!important}
+.overlay button{background:#55518a;color:#fff;border:0;border-radius:10px;padding:10px 16px}
+.spinner{height:26px;width:26px;border:3px solid #444;border-top-color:#e1dfff;border-radius:50%;animation:spin .8s linear infinite;margin:auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Padrão: controles leves SOBRE o jogo, sem bloco cinza nem superfície de captura. */
+.controls{position:absolute;z-index:10;left:0;right:0;bottom:0;height:clamp(175px,31dvh,255px);padding:8px 12px max(12px,env(safe-area-inset-bottom));display:grid;grid-template-rows:auto 1fr;gap:5px;background:transparent;border:0;border-radius:0;box-shadow:none;pointer-events:none;touch-action:manipulation}
+.controls button,.dpad{pointer-events:auto}
+.shoulders{display:flex;justify-content:space-between;gap:16px;max-width:860px;width:100%;margin:auto;pointer-events:none}
+.shoulder{height:31px;width:clamp(85px,19vw,150px);border:1px solid #cac9ed50;border-radius:15px 15px 8px 8px;color:#fff;font-size:12px;font-weight:900;background:rgba(53,51,75,var(--control-opacity));box-shadow:none}
+.control-row{width:min(100%,860px);margin:auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;min-width:0;pointer-events:none}
+.dpad{position:relative;width:calc(var(--size)*3);height:calc(var(--size)*3);justify-self:start;touch-action:none;isolation:isolate}
+.dpad:before,.dpad:after{content:"";position:absolute;background:rgba(46,47,72,var(--control-opacity));border:1px solid #cecbff35;border-radius:7px;pointer-events:none;box-shadow:none}
+.dpad:before{left:0;top:33.333%;width:100%;height:33.333%}
+.dpad:after{left:33.333%;top:0;width:33.333%;height:100%}
+.dir{position:absolute;pointer-events:none!important;background:transparent;border:0;color:rgba(245,245,255,.77);font-size:20px;font-weight:bold;width:var(--size);height:var(--size);z-index:1}
+.up{top:0;left:33.333%}.down{bottom:0;left:33.333%}.left{top:33.333%;left:0}.right{top:33.333%;right:0}
+.system{display:flex;gap:9px;align-self:end;padding-bottom:8px;pointer-events:none}
+.system button{border:1px solid #ffffff26;border-radius:30px;background:rgba(68,70,84,var(--control-opacity));color:#fff;font-size:9px;font-weight:bold;padding:9px 8px;min-width:50px;box-shadow:none}
+.actions{justify-self:end;display:flex;gap:clamp(8px,2vw,24px);align-items:center;transform:rotate(-18deg);padding:5px;pointer-events:none}
+.ab{border:2px solid #aba5ff6b;border-radius:50%;width:clamp(52px,12vw,78px);height:clamp(52px,12vw,78px);background:rgba(84,75,159,var(--control-opacity));color:#fff;font-size:25px;font-weight:900;box-shadow:none}
+.ab:first-child{transform:translateY(13px)}.ab:last-child{transform:translateY(-13px)}
+.controls button:focus:not(:focus-visible){outline:0}
+/* Visual clássico para comparação: ?controle=classico */
+html.classico .console{display:grid;grid-template-rows:minmax(0,1fr) auto;background:radial-gradient(ellipse at center,#333948,#14161e)}
+html.classico .display{position:relative;inset:auto;min-height:0;padding:clamp(8px,2vmin,20px)}
+html.classico .bezel{width:min(100%,calc((100dvh - 200px)*1.65));height:100%;max-width:1100px;border:clamp(8px,1.5vmin,17px) solid #2e323b;border-radius:13px;box-shadow:inset 0 0 0 2px #555b64,0 10px 30px #0009}
+html.classico .controls{position:relative;z-index:1;left:auto;right:auto;bottom:auto;height:auto;min-height:185px;background:linear-gradient(155deg,#d4d4dd,#a3a5af);border-top:4px solid #eff0f5;border-radius:22px 22px 0 0;box-shadow:inset 0 3px 6px #fff8}
+html.classico .shoulder{background:#55515e;box-shadow:inset 0 2px 3px #ffffff50,0 3px 3px #0004}
+html.classico .dpad:before,html.classico .dpad:after{background:#323642;box-shadow:inset 0 2px 3px #ffffff29,0 3px 3px #0007}
+html.classico .system button{background:#777b86}html.classico .ab{background:#594e9a;border:3px solid #332c60;box-shadow:inset 0 3px 5px #fff5,0 3px 0 #302b55}
+@media(orientation:landscape) and (max-height:620px){
+ :root{--size:clamp(30px,14vh,54px)}
+ .controls{height:100%;top:0;bottom:0;padding:8px;grid-template-rows:auto 1fr;align-content:center}
+ .shoulders{margin:0 auto}.shoulder{height:28px}
+ .system{flex-direction:column;gap:4px;padding:0}.system button{padding:6px}
+ .ab{width:clamp(45px,12vh,62px);height:clamp(45px,12vh,62px)}.control-row{gap:2px}
+ html.classico .console{grid-template-columns:minmax(0,1fr) minmax(290px,43%);grid-template-rows:1fr}
+ html.classico .display{padding:6px}
+ html.classico .bezel{width:100%;height:100%;border-width:7px}
+ html.classico .controls{top:auto;bottom:auto;height:100%;min-height:0;border-radius:20px 0 0 20px;border-top:0;border-left:4px solid #eff0f5}
+ html.classico .shoulders{margin:0}
 }
-html.visual-simples .controls{background:#babac2!important;border-color:#d8d8df!important}
-html.visual-simples .shoulder{background:#55515e!important}
-html.visual-simples .dpad::before,html.visual-simples .dpad::after{background:#323642!important}
-html.visual-simples .dir{background:transparent!important}
-html.visual-simples .system button{background:#777b86!important}
-html.visual-simples .ab{background:#594e9a!important}
-html.visual-simples .controls button:active,
-html.visual-simples .controls button:focus{filter:none!important;box-shadow:none!important}
+@media(max-width:370px){:root{--size:36px}.controls{padding-left:6px;padding-right:6px}.system{gap:3px}.system button{min-width:40px;padding:8px 3px;font-size:8px}.actions{gap:4px}.ab{width:47px;height:47px}}
+/* Diagnóstico: ?visual=simples remove decorações do controle clássico. */
+html.visual-simples .controls,html.visual-simples .controls *,html.visual-simples .controls *::before,html.visual-simples .controls *::after{box-shadow:none!important;filter:none!important;backdrop-filter:none!important;background-image:none!important;animation:none!important;transition:none!important;text-shadow:none!important;outline:none!important;-webkit-tap-highlight-color:transparent!important}
 </style>
 </head>
 <body>
@@ -48,108 +76,164 @@ html.visual-simples .controls button:focus{filter:none!important;box-shadow:none
 <section class="display"><div class="bezel"><div class="screen"><div id="game" class="game"></div><div id="loading" class="overlay"><div class="spinner"></div><span id="loadStatus">Preparando Game Boy Advance no Android...</span></div><div id="error" class="overlay" hidden><span id="errorText"></span><button onclick="location.reload()">Tentar novamente</button></div></div></div></section>
 <section class="controls" aria-label="Controle Game Boy Advance">
  <div class="shoulders"><button class="shoulder" data-key="L">L</button><button class="shoulder" data-key="R">R</button></div>
- <div class="control-row"><div class="dpad" id="dpad"><button class="dir up" data-dir="UP">▲</button><button class="dir down" data-dir="DOWN">▼</button><button class="dir left" data-dir="LEFT">◀</button><button class="dir right" data-dir="RIGHT">▶</button></div><div class="system"><button data-key="SELECT">SELECT</button><button data-key="START">START</button></div><div class="actions"><button class="ab" data-key="B">B</button><button class="ab" data-key="A">A</button></div></div>
+ <div class="control-row"><div class="dpad" id="dpad" role="group" aria-label="Direcional"><button class="dir up" data-dir="UP" tabindex="-1">▲</button><button class="dir down" data-dir="DOWN" tabindex="-1">▼</button><button class="dir left" data-dir="LEFT" tabindex="-1">◀</button><button class="dir right" data-dir="RIGHT" tabindex="-1">▶</button></div><div class="system"><button data-key="SELECT">SELECT</button><button data-key="START">START</button></div><div class="actions"><button class="ab" data-key="B">B</button><button class="ab" data-key="A">A</button></div></div>
 </section>
 </main>
 <script>
 'use strict';
-if(new URLSearchParams(location.search).get('visual')==='simples')document.documentElement.classList.add('visual-simples');
+const params=new URLSearchParams(location.search);
+if(params.get('visual')==='simples')document.documentElement.classList.add('visual-simples');
+if(params.get('controle')==='classico')document.documentElement.classList.add('classico');
 const $=selector=>document.querySelector(selector);
-// GBA Android: teste de eventos do controle, versão 2026-10-25
 const ids={B:0,SELECT:2,START:3,UP:4,DOWN:5,LEFT:6,RIGHT:7,A:8,L:10,R:11};
-const keys=Object.keys(ids), sources=new Map(keys.map(key=>[key,new Set()]));
+const keys=Object.keys(ids),sources=new Map(keys.map(key=>[key,new Set()]));
 let ready=false;
 const isAndroid=/Android/i.test(navigator.userAgent);
-const renderMode=new URLSearchParams(location.search).get('render');
-// Android: WebGL 1 as an explicit compatibility experiment; switch back with ?render=webgl2.
+const renderMode=params.get('render');
 const useLegacy=renderMode==='webgl1'||(isAndroid&&renderMode!=='webgl2');
 
-// Diagnóstico Android: remove o Service Worker anterior sem apagar ROMs salvas.
-// A página usa rede nesta versão, para isolar a causa da tela branca.
+// Recupera registros antigos sem limpar ROMs que o usuário possa ter salvo.
 async function recoverOldWorker(){
-  if(!('serviceWorker' in navigator))return;
-  try{
-    const registrations=await navigator.serviceWorker.getRegistrations();
-    for(const registration of registrations){
-      if(registration.scope.startsWith(new URL('./',location.href).href))await registration.unregister();
-    }
-    if(navigator.serviceWorker.controller && sessionStorage.getItem('gba-recover-reloaded')!=='1'){
-      sessionStorage.setItem('gba-recover-reloaded','1');
-      location.replace(location.pathname+'?'+new URLSearchParams(location.search).toString()+'&recuperado=1');
-      return new Promise(()=>{});
-    }
-  }catch(e){console.warn('[GBA] Falha na recuperação',e)}
+ if(!('serviceWorker' in navigator))return;
+ try{
+  const registrations=await navigator.serviceWorker.getRegistrations();
+  for(const registration of registrations)if(registration.scope.startsWith(new URL('./',location.href).href))await registration.unregister();
+  if(navigator.serviceWorker.controller&&sessionStorage.getItem('gba-recover-reloaded')!=='1'){
+   sessionStorage.setItem('gba-recover-reloaded','1');
+   location.replace(location.pathname+'?'+new URLSearchParams(location.search).toString()+'&recuperado=1');
+   return new Promise(()=>{});
+  }
+ }catch(e){console.warn('[GBA] Falha na recuperação',e)}
 }
-// O Service Worker faz o cache da ROM e do motor durante os requests do EmulatorJS.
-// Não carregamos uma segunda cópia inteira da ROM na memória do celular.
-window.addEventListener('error', event => {
-  if (!ready) fail('Falha ao iniciar: '+(event.message || 'erro de JavaScript')+'. Atualize a página ou limpe os dados deste site.');
-});
-window.addEventListener('unhandledrejection', event => {
-  if (!ready) fail('Erro de inicialização: '+(event.reason?.message || String(event.reason)));
-});
-function status(message){const el=document.querySelector('#loadStatus');if(el)el.textContent=message}
+window.addEventListener('error',event=>{if(!ready)fail('Falha ao iniciar: '+(event.message||'erro de JavaScript')+'. Atualize a página ou limpe os dados deste site.')});
+window.addEventListener('unhandledrejection',event=>{if(!ready)fail('Erro de inicialização: '+(event.reason?.message||String(event.reason)))});
+function status(message){const el=$('#loadStatus');if(el)el.textContent=message}
 function fail(message){$('#loading').hidden=true;$('#error').hidden=false;$('#errorText').textContent=message;console.error('[GBA]',message)}
-// Diagnóstico de controles. ?entrada=semcomando isola a API; ?entrada=quadro agenda transições.
-const entrada=new URLSearchParams(location.search).get('entrada')||'normal';
-const filaEntradas=[];
-let quadroPendente=false;
+
+// Envia no máximo uma transição de cada tecla por quadro. Assim um toque curto
+// nunca é condensado em pressionar+soltar no MESMO quadro do emulador.
+// ?entrada=imediato restaura o envio antigo para comparação.
+// ?entrada=semcomando testa apenas a interface, sem controlar o jogo.
+const entrada=params.get('entrada')||'quadro';
+const filaEntradas=[];let quadroPendente=false;
 function enviarAoMotor(key,down){
-  if(entrada==='semcomando')return;
-  try{window.EJS_emulator?.gameManager?.simulateInput(0,ids[key],down?1:0)}
-  catch(e){console.warn('[GBA] Falha no controle',e)}
+ if(entrada==='semcomando')return;
+ try{window.EJS_emulator?.gameManager?.simulateInput(0,ids[key],down?1:0)}
+ catch(e){console.warn('[GBA] Falha no controle',e)}
 }
 function descarregarFila(){
-  quadroPendente=false;
-  if(!ready||!filaEntradas.length)return;
-  // Um evento por quadro conserva pressionar+soltar mesmo em toques muito rápidos.
-  const [key,down]=filaEntradas.shift();
-  enviarAoMotor(key,down);
-  if(filaEntradas.length){quadroPendente=true;requestAnimationFrame(descarregarFila)}
+ quadroPendente=false;
+ if(!ready){filaEntradas.length=0;return}
+ const usados=new Set();let processados=0;
+ for(let i=0;i<filaEntradas.length&&processados<8;){
+  const [key,down]=filaEntradas[i];
+  if(usados.has(key)){i++;continue}
+  usados.add(key);filaEntradas.splice(i,1);enviarAoMotor(key,down);processados++;
+ }
+ if(filaEntradas.length){quadroPendente=true;requestAnimationFrame(descarregarFila)}
 }
 function input(key,source,down){
-  const set=sources.get(key);if(!set)return;
-  const antes=set.size>0;
-  if(down){if(set.has(source))return;set.add(source)}
-  else{if(!set.has(source))return;set.delete(source)}
-  const depois=set.size>0;
-  if(!ready||antes===depois)return;
-  if(entrada==='quadro'){
-    filaEntradas.push([key,depois]);
-    if(!quadroPendente){quadroPendente=true;requestAnimationFrame(descarregarFila)}
-  }else enviarAoMotor(key,depois);
+ const set=sources.get(key);if(!set)return;
+ const antes=set.size>0;
+ if(down){if(set.has(source))return;set.add(source)}
+ else{if(!set.has(source))return;set.delete(source)}
+ const depois=set.size>0;
+ if(!ready||antes===depois)return;
+ if(entrada==='imediato')enviarAoMotor(key,depois);
+ else if(entrada!=='semcomando'){
+  filaEntradas.push([key,depois]);
+  if(!quadroPendente){quadroPendente=true;requestAnimationFrame(descarregarFila)}
+ }
 }
 function release(source){for(const key of keys)input(key,source,false)}
-// Um ponteiro por botão; não dispara eventos repetidos enquanto o dedo está imóvel.
-for(const button of document.querySelectorAll('[data-key]')){const key=button.dataset.key;button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);input(key,'p'+e.pointerId,true)});for(const ev of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(ev,e=>input(key,'p'+e.pointerId,false));button.addEventListener('contextmenu',e=>e.preventDefault())}
-// Direcional com diagonais, e troca de direção deslizando o dedo.
-const pad=$('#dpad'),padSources=new Set(),directions=['UP','DOWN','LEFT','RIGHT'];
-function move(e){const r=pad.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;const s='d'+e.pointerId;const next={UP:y<-.19,DOWN:y>.19,LEFT:x<-.19,RIGHT:x>.19};if(Math.abs(x)<.13&&Math.abs(y)<.13)directions.forEach(k=>next[k]=false);directions.forEach(k=>input(k,s,next[k]))}
-pad.addEventListener('pointerdown',e=>{e.preventDefault();padSources.add(e.pointerId);pad.setPointerCapture(e.pointerId);move(e)});pad.addEventListener('pointermove',e=>{if(padSources.has(e.pointerId)){e.preventDefault();move(e)}});for(const ev of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(ev,e=>{if(!padSources.delete(e.pointerId))return;release('d'+e.pointerId)});
-const keyboard={ArrowUp:'UP',ArrowDown:'DOWN',ArrowLeft:'LEFT',ArrowRight:'RIGHT',KeyZ:'B',KeyX:'A',KeyA:'L',KeyS:'R',Enter:'START',ShiftRight:'SELECT',ShiftLeft:'SELECT'};
-document.addEventListener('keydown',e=>{const k=keyboard[e.code];if(!k)return;e.preventDefault();e.stopImmediatePropagation();input(k,'kb'+e.code,true)},true);document.addEventListener('keyup',e=>{const k=keyboard[e.code];if(!k)return;e.preventDefault();e.stopImmediatePropagation();input(k,'kb'+e.code,false)},true);
-window.addEventListener('blur',()=>{for(const set of sources.values())for(const s of [...set])release(s)});
-// ?jogo=nome ou ?jogo=nome.gba; apenas arquivos no diretório jogos/.
-async function gameSelection(){const params=new URLSearchParams(location.search);const id=params.get('jogo')||'001';if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}(?:\.gba)?$/.test(id))throw Error('Nome de jogo inválido. Use letras, números, hífen ou _');const response=await fetch('./jogos/catalogo.json',{cache:'no-store'});const catalog=response.ok?await response.json():{};const item=catalog[id];const filename=item?.arquivo||(id.toLowerCase().endsWith('.gba')?id:id+'.gba');if(typeof filename!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}\.gba$/i.test(filename))throw Error('Nome de arquivo inválido no catálogo.');return {filename,title:item?.nome||id}}
-async function boot(){try{status("Verificando versão local...");await recoverOldWorker();status("Selecionando jogo...");const game=await gameSelection();const rom=new URL('./jogos/'+game.filename,location.href);document.title=game.title+' · GBA';status('Carregando núcleo mGBA...');window.EJS_player='#game';window.EJS_core='gba';window.EJS_gameUrl=rom.href;window.EJS_gameName=game.title;window.EJS_pathtodata='https://cdn.emulatorjs.org/stable/data/';window.EJS_startOnLoaded=!isAndroid;window.EJS_forceLegacyCores=useLegacy;window.EJS_color='#594e9a';window.EJS_volume=0.85;window.EJS_controlScheme='gba';window.EJS_defaultOptions={shader:'disabled',rewindEnabled:'disabled',fps:'hide',vsync:'disabled'};window.EJS_onGameStart=()=>{ready=true;$('#loading').hidden=true;for(const k of keys)if(sources.get(k).size)window.EJS_emulator?.gameManager?.simulateInput(0,ids[k],1)};const script=document.createElement('script');
-// O toque no botão original do emulador libera a inicialização no Android.
-// Mantemos a tela de carregamento somente até surgir o botão de início.
-if(isAndroid){
-  status('Preparando jogo...');
-  const startObserver=new MutationObserver(()=>{
-    if(document.querySelector('#game .ejs_start_button')){
-      startObserver.disconnect();
-      if(!ready)$('#loading').hidden=true;
-    }
-  });
-  startObserver.observe($('#game'),{childList:true,subtree:true});
-  // Fallback caso a versão do EmulatorJS use uma classe diferente.
-  setTimeout(()=>{startObserver.disconnect();if(!ready&&$('#error').hidden)$('#loading').hidden=true},8000);
+
+// Não há listener nos quatro botões internos do D-pad: somente o pai trata
+// cada dedo, eliminando os eventos duplicados por propagação (bubbling).
+for(const button of document.querySelectorAll('[data-key]')){
+ const key=button.dataset.key;
+ button.addEventListener('pointerdown',e=>{
+  if(e.button!==0&&e.pointerType==='mouse')return;
+  e.preventDefault();e.stopPropagation();
+  try{button.setPointerCapture(e.pointerId)}catch(_){}
+  input(key,'p'+e.pointerId,true);
+ });
+ for(const ev of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(ev,e=>input(key,'p'+e.pointerId,false));
+ button.addEventListener('contextmenu',e=>e.preventDefault());
 }
-script.onload=()=>{status(isAndroid?'Toque em Jogar para iniciar':'Iniciando emulação...')};script.src='https://cdn.emulatorjs.org/stable/data/loader.js';script.onerror=()=>fail('Não foi possível carregar o EmulatorJS. Verifique sua conexão.');document.head.appendChild(script);setTimeout(()=>{if(!ready&&$('#error').hidden)fail('Tempo esgotado ao iniciar o mGBA no Android. Teste outro navegador ou veja o console remoto.')},60000)}catch(e){fail(e.message||String(e))}}
-// Detecta problemas que antes deixavam a tela em branco.
-window.addEventListener('error', e => {if(!ready)fail('Falha no Android: '+(e.message||'erro inesperado'))});
-window.addEventListener('unhandledrejection', e => {if(!ready)fail('Falha de inicialização: '+String(e.reason?.message||e.reason))});
+const pad=$('#dpad'),padSources=new Set(),directions=['UP','DOWN','LEFT','RIGHT'];
+let padRect=null;
+function move(e){
+ const r=padRect||pad.getBoundingClientRect();
+ const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5,s='d'+e.pointerId;
+ const next={UP:y<-.19,DOWN:y>.19,LEFT:x<-.19,RIGHT:x>.19};
+ if(Math.abs(x)<.13&&Math.abs(y)<.13)directions.forEach(k=>next[k]=false);
+ directions.forEach(k=>input(k,s,next[k]));
+}
+pad.addEventListener('pointerdown',e=>{
+ if(e.button!==0&&e.pointerType==='mouse')return;
+ e.preventDefault();padSources.add(e.pointerId);
+ if(!padRect)padRect=pad.getBoundingClientRect();
+ try{pad.setPointerCapture(e.pointerId)}catch(_){}
+ move(e);
+});
+pad.addEventListener('pointermove',e=>{if(padSources.has(e.pointerId)){e.preventDefault();move(e)}});
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(ev,e=>{
+ if(!padSources.delete(e.pointerId))return;
+ release('d'+e.pointerId);
+ if(!padSources.size)padRect=null;
+});
+pad.addEventListener('contextmenu',e=>e.preventDefault());
+const keyboard={ArrowUp:'UP',ArrowDown:'DOWN',ArrowLeft:'LEFT',ArrowRight:'RIGHT',KeyZ:'B',KeyX:'A',KeyA:'L',KeyS:'R',Enter:'START',ShiftRight:'SELECT',ShiftLeft:'SELECT'};
+document.addEventListener('keydown',e=>{const k=keyboard[e.code];if(!k)return;e.preventDefault();e.stopImmediatePropagation();input(k,'kb'+e.code,true)},true);
+document.addEventListener('keyup',e=>{const k=keyboard[e.code];if(!k)return;e.preventDefault();e.stopImmediatePropagation();input(k,'kb'+e.code,false)},true);
+function releaseAll(){for(const [key,set] of sources)for(const source of [...set])input(key,source,false)}
+window.addEventListener('blur',releaseAll);
+window.addEventListener('pagehide',releaseAll);
+
+// Seleção restrita aos jogos do diretório jogos/.
+async function gameSelection(){
+ const id=params.get('jogo')||'001';
+ if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}(?:\.gba)?$/.test(id))throw Error('Nome de jogo inválido. Use letras, números, hífen ou _');
+ const response=await fetch('./jogos/catalogo.json',{cache:'no-store'});
+ const catalog=response.ok?await response.json():{};
+ const item=catalog[id];
+ const filename=item?.arquivo||(id.toLowerCase().endsWith('.gba')?id:id+'.gba');
+ if(typeof filename!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}\.gba$/i.test(filename))throw Error('Nome de arquivo inválido no catálogo.');
+ return {filename,title:item?.nome||id};
+}
+async function boot(){
+ try{
+  status('Verificando versão local...');await recoverOldWorker();
+  status('Selecionando jogo...');const game=await gameSelection();const rom=new URL('./jogos/'+game.filename,location.href);
+  document.title=game.title+' · GBA';status('Carregando núcleo mGBA...');
+  window.EJS_player='#game';window.EJS_core='gba';window.EJS_gameUrl=rom.href;
+  window.EJS_gameName=game.title;window.EJS_pathtodata='https://cdn.emulatorjs.org/stable/data/';
+  window.EJS_startOnLoaded=!isAndroid;window.EJS_forceLegacyCores=useLegacy;
+  window.EJS_color='#594e9a';window.EJS_volume=0.85;window.EJS_controlScheme='gba';
+  window.EJS_defaultOptions={shader:'disabled',rewindEnabled:'disabled',fps:'hide',vsync:'disabled'};
+  window.EJS_onGameStart=()=>{
+   ready=true;$('#loading').hidden=true;
+   // Restaura as teclas que o usuário já estiver pressionando quando o jogo iniciar.
+   for(const k of keys)if(sources.get(k).size)enviarAoMotor(k,true);
+  };
+  const script=document.createElement('script');
+  if(isAndroid){
+   status('Preparando jogo...');
+   const observer=new MutationObserver(()=>{
+    if(document.querySelector('#game .ejs_start_button')){
+     observer.disconnect();if(!ready)$('#loading').hidden=true;
+    }
+   });
+   observer.observe($('#game'),{childList:true,subtree:true});
+   setTimeout(()=>{observer.disconnect();if(!ready&&$('#error').hidden)$('#loading').hidden=true},8000);
+  }
+  script.onload=()=>status(isAndroid?'Toque em Jogar para iniciar':'Iniciando emulação...');
+  script.src='https://cdn.emulatorjs.org/stable/data/loader.js';
+  script.onerror=()=>fail('Não foi possível carregar o EmulatorJS. Verifique sua conexão.');
+  document.head.appendChild(script);
+  setTimeout(()=>{if(!ready&&$('#error').hidden)fail('Tempo esgotado ao iniciar o mGBA no Android. Teste outro navegador ou veja o console remoto.')},60000);
+ }catch(e){fail(e.message||String(e))}
+}
 boot();
 </script>
 </body>
