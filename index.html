@@ -72,6 +72,11 @@ html.classico .system button{background:#777b86}html.classico .ab{background:#59
 @media(max-width:370px){:root{--size:36px}.controls{padding-left:6px;padding-right:6px}.system{gap:3px}.system button{min-width:40px;padding:8px 3px;font-size:8px}.actions{gap:4px}.ab{width:47px;height:47px}}
 /* Diagnóstico: ?visual=simples remove decorações do controle clássico. */
 html.visual-simples .controls,html.visual-simples .controls *,html.visual-simples .controls *::before,html.visual-simples .controls *::after{box-shadow:none!important;filter:none!important;backdrop-filter:none!important;background-image:none!important;animation:none!important;transition:none!important;text-shadow:none!important;outline:none!important;-webkit-tap-highlight-color:transparent!important}
+
+/* Controle em camada isolada: os botões originais deixam de receber toque. */
+html.entrada-isolada .controls{visibility:hidden!important;pointer-events:none!important}
+.gba-touch-frame{position:fixed;z-index:20;left:0;right:0;bottom:0;width:100%;height:clamp(175px,31dvh,255px);border:0;background:transparent;display:block;touch-action:none}
+@media(orientation:landscape) and (max-height:620px){.gba-touch-frame{height:100%;top:0;bottom:0}}
 </style>
 </head>
 <body>
@@ -175,7 +180,10 @@ if(params.get('medir')==='1'){
 // nunca é condensado em pressionar+soltar no MESMO quadro do emulador.
 // ?entrada=imediato restaura o envio antigo para comparação.
 // ?entrada=semcomando testa apenas a interface, sem controlar o jogo.
-const entrada=params.get('entrada')||'quadro';
+// Controles em um iframe sandboxed: eventos físicos fora do documento do emulador.
+// ?entrada=quadro mantém o método anterior; ?entrada=toque-puro isola todos os handlers.
+const entrada=params.get('entrada')||(isAndroid&&!document.documentElement.classList.contains('classico')?'isolada':'quadro');
+if(entrada==='isolada'||entrada==='toque-puro')document.documentElement.classList.add('entrada-isolada');
 const filaEntradas=[];let quadroPendente=false;
 function enviarAoMotor(key,down){
  if(entrada==='semcomando')return;
@@ -206,6 +214,35 @@ function input(key,source,down){
   if(!quadroPendente){quadroPendente=true;requestAnimationFrame(descarregarFila)}
  }
 }
+// Camada independente de entrada — permite comparar ?entrada=quadro com ?entrada=isolada.
+let isolatedFrame=null;
+function setupIsolatedControls(){
+ if(entrada!=='isolada'&&entrada!=='toque-puro')return;
+ if(isolatedFrame)return;
+ const fr=document.createElement('iframe');
+ fr.className='gba-touch-frame';
+ fr.setAttribute('title',entrada==='toque-puro'?'Teste de toque sem JavaScript':'Controle do Game Boy Advance');
+ fr.setAttribute('aria-label','Controles do Game Boy Advance');
+ fr.setAttribute('scrolling','no');
+ fr.setAttribute('allowtransparency','true');
+ fr.setAttribute('sandbox',entrada==='isolada'?'allow-scripts':'');
+ const globalCss=document.querySelector('head style').textContent;
+ if(entrada==='toque-puro'){
+   fr.srcdoc='<!doctype html><html lang="pt-BR"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:transparent;display:grid;place-items:center;height:100vh;color:#fff;font:12px Arial;text-align:center;touch-action:none"><div style="padding:12px;background:#0b152299;border-radius:12px">Teste sem comandos e sem listeners.<br>Toque e deslize aqui.<br>O jogo não responderá.</div></body></html>';
+ }else{
+   const original=document.querySelector('.controls').outerHTML;
+   const frameCss='html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden;overscroll-behavior:none;touch-action:none}html{--control-opacity:.38}.console{position:relative;height:100%;width:100%;background:transparent!important;isolation:auto}.controls,.console.playing .controls{position:absolute!important;inset:0!important;height:100%!important;width:100%!important;pointer-events:auto!important;visibility:visible!important;background:transparent!important}';
+   const innerScript="(function(){'use strict';\nconst channel='GBA_CONTROLE_ISOLADO_V1', buttons=new Map(), pad=document.getElementById('dpad');\nconst dirs=['UP','DOWN','LEFT','RIGHT'], activePad=new Map();\nconst send=(key,source,down)=>parent.postMessage({type:channel,key,source,down},'*');\nfunction releaseButton(id){const rec=buttons.get(id);if(!rec)return;send(rec.key,'b'+id,false);buttons.delete(id)}\nfor(const btn of document.querySelectorAll('[data-key]')){\n  btn.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;e.preventDefault();const id=e.pointerId;releaseButton(id);buttons.set(id,{key:btn.dataset.key});try{btn.setPointerCapture(id)}catch(_){}send(btn.dataset.key,'b'+id,true)});\n  for(const ev of ['pointerup','pointercancel','lostpointercapture'])btn.addEventListener(ev,e=>releaseButton(e.pointerId));\n  btn.addEventListener('contextmenu',e=>e.preventDefault());\n}\nlet rect=null;\nfunction update(e){const id=e.pointerId,prior=activePad.get(id);if(!prior)return;\n  const r=rect||pad.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;\n  const wanted=new Set();if(y<-.19)wanted.add('UP');if(y>.19)wanted.add('DOWN');if(x<-.19)wanted.add('LEFT');if(x>.19)wanted.add('RIGHT');\n  if(Math.abs(x)<.13&&Math.abs(y)<.13)wanted.clear();\n  for(const key of prior)if(!wanted.has(key))send(key,'d'+id,false);\n  for(const key of wanted)if(!prior.has(key))send(key,'d'+id,true);\n  activePad.set(id,wanted);\n}\nfunction releasePad(id){const old=activePad.get(id);if(!old)return;for(const key of old)send(key,'d'+id,false);activePad.delete(id);if(!activePad.size)rect=null}\npad.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;e.preventDefault();const id=e.pointerId;rect=rect||pad.getBoundingClientRect();activePad.set(id,new Set());try{pad.setPointerCapture(id)}catch(_){}update(e)});\npad.addEventListener('pointermove',e=>{if(activePad.has(e.pointerId)){e.preventDefault();update(e)}});\nfor(const ev of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(ev,e=>releasePad(e.pointerId));\npad.addEventListener('contextmenu',e=>e.preventDefault());\nwindow.addEventListener('blur',()=>{for(const id of [...buttons.keys()])releaseButton(id);for(const id of [...activePad.keys()])releasePad(id)});\n})();";
+   fr.srcdoc='<!doctype html><html lang="pt-BR"><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><style>'+globalCss+'\n'+frameCss+'</style></head><body><main class="console playing">'+original+'</main><scr'+'ipt>'+innerScript+'</scr'+'ipt></body></html>';
+ }
+ isolatedFrame=fr;document.body.append(fr);
+}
+window.addEventListener('message',e=>{
+ if(!isolatedFrame||e.source!==isolatedFrame.contentWindow||e.data?.type!=='GBA_CONTROLE_ISOLADO_V1'||entrada!=='isolada')return;
+ const d=e.data;if(!Object.prototype.hasOwnProperty.call(ids,d.key)||typeof d.source!=='string'||d.source.length>30||typeof d.down!=='boolean')return;
+ input(d.key,'iframe_'+d.source,d.down);
+});
+
 function release(source){for(const key of keys)input(key,source,false)}
 
 // Não há listener nos quatro botões internos do D-pad: somente o pai trata
@@ -274,6 +311,7 @@ async function boot(){
   window.EJS_defaultOptions={shader:'disabled',rewindEnabled:'disabled',fps:'hide',vsync:'disabled'};
   window.EJS_onGameStart=()=>{
    ready=true;$('#loading').hidden=true;document.querySelector('.console').classList.add('playing');
+   setupIsolatedControls();
    // Restaura as teclas que o usuário já estiver pressionando quando o jogo iniciar.
    for(const k of keys)if(sources.get(k).size)enviarAoMotor(k,true);
   };
