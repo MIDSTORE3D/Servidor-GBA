@@ -30,7 +30,10 @@ button:focus-visible{outline:2px solid #ffee8a;outline-offset:3px}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* Padrão: controles leves SOBRE o jogo, sem bloco cinza nem superfície de captura. */
 .controls{position:absolute;z-index:10;left:0;right:0;bottom:0;height:clamp(175px,31dvh,255px);padding:8px 12px max(12px,env(safe-area-inset-bottom));display:grid;grid-template-rows:auto 1fr;gap:5px;background:transparent;border:0;border-radius:0;box-shadow:none;pointer-events:none;touch-action:manipulation}
-.controls button,.dpad{pointer-events:auto}
+/* Enquanto o emulador carrega, o toque alcança o botão Jogar original. */
+.controls button,.controls .dpad{pointer-events:none}
+.console.playing .controls{pointer-events:auto;touch-action:none}
+.console.playing .controls button,.console.playing .controls .dpad{pointer-events:auto}
 .shoulders{display:flex;justify-content:space-between;gap:16px;max-width:860px;width:100%;margin:auto;pointer-events:none}
 .shoulder{height:31px;width:clamp(85px,19vw,150px);border:1px solid #cac9ed50;border-radius:15px 15px 8px 8px;color:#fff;font-size:12px;font-weight:900;background:rgba(53,51,75,var(--control-opacity));box-shadow:none}
 .control-row{width:min(100%,860px);margin:auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;min-width:0;pointer-events:none}
@@ -82,9 +85,38 @@ html.visual-simples .controls,html.visual-simples .controls *,html.visual-simple
 <script>
 'use strict';
 const params=new URLSearchParams(location.search);
+// Experimento de desempenho: o EmulatorJS pode criar WebGL com alpha=true,
+// exigindo composição transparente de toda a imagem a cada quadro.
+// ?gpu=normal desliga esta correção para comparar, sem alterar a ROM/saves.
+const gpuOpaca=params.get('gpu')!=='normal';
+if(gpuOpaca){
+ const originalGetContext=HTMLCanvasElement.prototype.getContext;
+ HTMLCanvasElement.prototype.getContext=function(kind,attributes){
+  if(kind==='webgl'||kind==='webgl2'||kind==='experimental-webgl'){
+   attributes={...(attributes||{}),alpha:false,premultipliedAlpha:false};
+  }
+  return originalGetContext.call(this,kind,attributes);
+ };
+}
 if(params.get('visual')==='simples')document.documentElement.classList.add('visual-simples');
 if(params.get('controle')==='classico')document.documentElement.classList.add('classico');
 const $=selector=>document.querySelector(selector);
+// Regiões vazias do controle não precisam gerar eventos para o EmulatorJS.
+// Os botões continuam com os seus listeners próprios e multitoque.
+const controlSurface=document.querySelector('.controls');
+for(const eventName of ['pointerdown','pointermove','pointerup','pointercancel']){
+ controlSurface.addEventListener(eventName,event=>{
+  if(event.target===controlSurface)event.preventDefault();
+  event.stopPropagation();
+ });
+}
+for(const eventName of ['touchstart','touchmove']){
+ controlSurface.addEventListener(eventName,event=>{
+  if(event.target===controlSurface)event.preventDefault();
+  event.stopPropagation();
+ },{passive:false});
+}
+
 const ids={B:0,SELECT:2,START:3,UP:4,DOWN:5,LEFT:6,RIGHT:7,A:8,L:10,R:11};
 const keys=Object.keys(ids),sources=new Map(keys.map(key=>[key,new Set()]));
 let ready=false;
@@ -109,6 +141,35 @@ window.addEventListener('error',event=>{if(!ready)fail('Falha ao iniciar: '+(eve
 window.addEventListener('unhandledrejection',event=>{if(!ready)fail('Erro de inicialização: '+(event.reason?.message||String(event.reason)))});
 function status(message){const el=$('#loadStatus');if(el)el.textContent=message}
 function fail(message){$('#loading').hidden=true;$('#error').hidden=false;$('#errorText').textContent=message;console.error('[GBA]',message)}
+// ?medir=1: FPS reais do núcleo (se expostos) e quadros visuais lentos.
+// Instrumentação desligada normalmente para não competir com o emulador.
+if(params.get('medir')==='1'){
+ const badge=document.createElement('output');
+ badge.id='gbaPerf';badge.setAttribute('aria-label','Diagnóstico de desempenho');
+ badge.style.cssText='position:fixed;top:8px;left:8px;z-index:30;pointer-events:none;padding:6px 9px;border-radius:8px;background:#060915d9;color:#a9f9d5;font:11px/1.5 monospace;white-space:pre-line;max-width:80vw';
+ document.body.appendChild(badge);
+ let previous=0,start=0,frames=0,late=0,coreStart=null;
+ function sample(t){
+  if(previous){frames++;if(t-previous>33.3)late++;}
+  previous=t;
+  if(!start)start=t;
+  if(t-start>=1000){
+   const elapsed=(t-start)/1000;
+   const gm=window.EJS_emulator?.gameManager;
+   const current=typeof gm?.getFrameNum==='function'?gm.getFrameNum():null;
+   const fps=(current!==null&&coreStart!==null)?Math.round((current-coreStart)/elapsed):null;
+   badge.textContent='GPU '+(gpuOpaca?'opaca':'normal')+' | entrada '+entrada+'\n'+
+    'FPS emulador: '+(fps!==null?fps:'—')+' | quadros lentos: '+late+'/s\n'+
+    'Quadros navegador: '+Math.round(frames/elapsed)+'/s';
+   coreStart=current;start=t;frames=0;late=0;
+  }
+  if(!document.hidden)requestAnimationFrame(sample);
+  else{previous=0;start=0;frames=0;late=0;coreStart=null}
+ }
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)requestAnimationFrame(sample)});
+ requestAnimationFrame(sample);
+}
+
 
 // Envia no máximo uma transição de cada tecla por quadro. Assim um toque curto
 // nunca é condensado em pressionar+soltar no MESMO quadro do emulador.
@@ -212,7 +273,7 @@ async function boot(){
   window.EJS_color='#594e9a';window.EJS_volume=0.85;window.EJS_controlScheme='gba';
   window.EJS_defaultOptions={shader:'disabled',rewindEnabled:'disabled',fps:'hide',vsync:'disabled'};
   window.EJS_onGameStart=()=>{
-   ready=true;$('#loading').hidden=true;
+   ready=true;$('#loading').hidden=true;document.querySelector('.console').classList.add('playing');
    // Restaura as teclas que o usuário já estiver pressionando quando o jogo iniciar.
    for(const k of keys)if(sources.get(k).size)enviarAoMotor(k,true);
   };
