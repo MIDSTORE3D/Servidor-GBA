@@ -73,9 +73,9 @@ const SKY_SOURCES=[
   'https://raw.githubusercontent.com/skylersaleh/SkyEmu/'+SKY_REF+'/'
 ];
 let skySource=SKY_SOURCES[0];
-const gameIDs=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}(?:\.gba)?$/;
-const fileNames=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}\.gba$/i;
-let catalog={}, ready=false, failed=false;
+// A URL aponta diretamente para o arquivo em jogos/, sem catálogo.
+const romNamePattern=/^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,99}$/u;
+let ready=false, failed=false;
 let runtimeResolve;
 let nativeRomResolve;
 let nativeRomError=false;
@@ -214,29 +214,22 @@ async function loadSkyEngine(){
 function status(value){if(!failed&&value)$('#loadStatus').textContent=value}
 function error(message){if(failed)return;failed=true;$('#loadStatus').textContent=message;$('#progress').hidden=true;$('#retry').hidden=false;console.error('[Servidor-GBA]',message)}
 function showGame(){ready=true;failed=false;$('#loading').hidden=true;document.getElementById('canvas').focus({preventScroll:true})}
-async function getCatalog(){
- const response=await fetch('./jogos/catalogo.json',{cache:'no-store'});
- if(!response.ok)throw Error('Catálogo de jogos indisponível (HTTP '+response.status+').');
- const data=await response.json();
- if(!data||typeof data!=='object'||Array.isArray(data))throw Error('Catálogo inválido.');
- catalog=data;
-}
 function gameInfo(){
- const id=opts.get('jogo')||'001';
- if(!gameIDs.test(id))throw Error('Identificador do cartucho NFC inválido.');
- const entry=catalog[id];
- if(!entry||typeof entry.arquivo!=='string')throw Error('Cartucho não cadastrado: '+id+'. Confira jogos/catalogo.json.');
- if(!fileNames.test(entry.arquivo))throw Error('Arquivo inválido no catálogo: '+id+'.');
- return {file:entry.arquivo,name:String(entry.nome||id).slice(0,120)};
+ // Exemplo: ?jogo=SMA2 carrega jogos/SMA2.gba (sem arquivo de catálogo).
+ let name=opts.get('jogo')||'SMA2';
+ if(/\.gba$/i.test(name))name=name.slice(0,-4);
+ if(!romNamePattern.test(name)||/[. ]$/.test(name)){
+  throw Error('Nome do jogo inválido. Use o nome do arquivo sem .gba, por exemplo: ?jogo=SMA2.');
+ }
+ return {file:name+'.gba',name};
 }
 async function bootGame(){
  try{
-  await getCatalog();
   const game=gameInfo();
   document.title=game.name+' · Servidor-GBA';
   status('Buscando '+game.name+'...');
   const response=await fetch('./jogos/'+encodeURIComponent(game.file),{cache:'default'});
-  if(!response.ok)throw Error('Não encontrei jogos/'+game.file+' (HTTP '+response.status+').');
+  if(!response.ok)throw Error('Não encontrei jogos/'+game.file+' (HTTP '+response.status+'). Confira o nome do arquivo, inclusive maiúsculas/minúsculas.');
   const bytes=new Uint8Array(await response.arrayBuffer());
   if(!bytes.length)throw Error('O arquivo de jogo está vazio.');
   // Ao contrário do método anterior, não simula um arrastar-e-soltar após iniciar.
@@ -271,7 +264,7 @@ var Module={
  setStatus(text){if(text&&text!=='Running...')status(text)},
  monitorRunDependencies(){}
 };
-// Cartuchos NFC: o jogo vem de ?jogo=ID. O SkyEmu permanece intacto.
+// Cartuchos NFC: o jogo vem de ?jogo=NOME_DO_ARQUIVO. O SkyEmu permanece intacto.
 // No aplicativo instalado, a tela cheia/horizontal vem do manifest.
 // No Chrome comum, a Fullscreen API exige um toque REAL do jogador.
 // pointerup (e não pointerdown) é o gesto com ativação em telas sensíveis ao toque.
