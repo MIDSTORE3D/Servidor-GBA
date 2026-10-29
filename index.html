@@ -271,10 +271,37 @@ var Module={
  setStatus(text){if(text&&text!=='Running...')status(text)},
  monitorRunDependencies(){}
 };
-// O jogador não escolhe ROMs: a tag NFC define ?jogo=ID. Sem menu de seleção no HTML.
-// Tela cheia e orientação horizontal são solicitadas apenas pelo manifesto
-// quando o navegador iniciar o site como PWA instalado.
-// Na abertura normal por NFC não solicitamos fullscreen nem rotação.
+// Cartuchos NFC: o jogo vem de ?jogo=ID. O SkyEmu permanece intacto.
+// No aplicativo instalado, a tela cheia/horizontal vem do manifest.
+// No Chrome comum, a Fullscreen API exige um toque REAL do jogador.
+// pointerup (e não pointerdown) é o gesto com ativação em telas sensíveis ao toque.
+const mobileTouch=matchMedia('(pointer: coarse)').matches;
+let enteringFullscreen=false;
+function alreadyFullscreen(){
+ return !!(document.fullscreenElement||document.webkitFullscreenElement||
+          matchMedia('(display-mode: fullscreen)').matches);
+}
+async function enterGameFullscreen(){
+ if(!ready||modoConfiguracao||!mobileTouch||alreadyFullscreen()||enteringFullscreen)return;
+ enteringFullscreen=true;
+ try{
+  const element=document.documentElement;
+  if(!element.requestFullscreen) return;
+  // Esta chamada acontece diretamente no evento real do toque.
+  await element.requestFullscreen({navigationUI:'hide'});
+  if(screen.orientation && typeof screen.orientation.lock==='function'){
+   try{await screen.orientation.lock('landscape');}
+   catch(err){console.info('[Servidor-GBA] Rotação horizontal não autorizada neste navegador.',err);}
+  }
+ }catch(err){
+  console.info('[Servidor-GBA] Tela cheia requer autorização do navegador.',err);
+ }finally{
+  enteringFullscreen=false; // se falhar, um próximo toque poderá tentar novamente
+ }
+}
+document.addEventListener('pointerup',function(event){
+ if(event.pointerType==='touch') void enterGameFullscreen();
+}, {capture:true,passive:true});
 $('#retry').addEventListener('click',()=>location.reload());
 window.addEventListener('error',event=>{if(!ready)error('Falha ao iniciar o SkyEmu: '+(event.message||'erro no navegador'))});
 window.addEventListener('unhandledrejection',event=>{if(!ready)error('Falha no SkyEmu: '+String(event.reason?.message||event.reason))});
