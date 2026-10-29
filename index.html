@@ -79,7 +79,7 @@ body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(
 const $=s=>document.querySelector(s);
 const opts=new URLSearchParams(location.search);
 // Compilação web oficial do SkyEmu, fixa no commit da distribuição gh-pages.
-// Os JS/WASM são baixados uma única vez e validados antes de iniciar o motor.
+// Os JS/WASM são validados antes de iniciar o motor; ROM é carregada via argv na inicialização.
 const SKY_REF='155cb39a6ec3e32d2fe92b3e2f6c31333b87bd56';
 const SKY_SOURCES=[
   'https://cdn.jsdelivr.net/gh/skylersaleh/SkyEmu@'+SKY_REF+'/',
@@ -90,6 +90,22 @@ const gameIDs=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}(?:\.gba)?$/;
 const fileNames=/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}\.gba$/i;
 let catalog={}, ready=false, failed=false;
 let runtimeResolve, runtimeReject;
+let nativeRomResolve, nativeRomReject;
+let nativeRomError=false;
+let preloadedRom=null;
+const nativeRomStarted=new Promise((resolve,reject)=>{nativeRomResolve=resolve;nativeRomReject=reject});
+function reportSkyOutput(value,isError=false){
+ const message=String(value||'');
+ if(isError)console.error('[SkyEmu]',message);else console.log('[SkyEmu]',message);
+ if(/ERROR:\s*failed to load ROM/i.test(message)){
+  nativeRomError=true;
+  nativeRomResolve();
+ }else if(/Loading:\s*\//i.test(message)){
+  // O próprio motor informou que leu a ROM no sistema de arquivos em memória.
+  // Aguarda a finalização síncrona do carregamento, para detectar erros subsequentes.
+  setTimeout(()=>{if(!nativeRomError)nativeRomResolve()},350);
+ }
+}
 const engineReady=new Promise((resolve,reject)=>{runtimeResolve=resolve;runtimeReject=reject});
 // Evita uma promessa sem fim caso a inicialização do WebAssembly falhe sem erro visível.
 function deadline(promise, ms, message){
@@ -148,7 +164,7 @@ function manualFile(){document.getElementById('fileInput').click()}
 function sendFile(file){
  if(typeof Module.sokol_drop!=='function')throw Error('O motor de carregamento ainda não está pronto.');
  if(!file||!/\.(gba|gb|gbc|zip)$/i.test(file.name))throw Error('Formato de jogo inválido.');
- // Interface de arrastar/soltar oficialmente usada pelo SkyEmu, sem clicar no canvas.
+ // Usado somente para arquivos escolhidos manualmente após a inicialização.
  Module.sokol_drop({dataTransfer:{files:[file]},clientX:0,clientY:0,stopPropagation(){},preventDefault(){}});
  showGame();
 }
@@ -190,20 +206,36 @@ async function bootGame(){
   document.title=game.name+' · Servidor-GBA';
   status('Buscando '+game.name+'...');
   const response=await fetch('./jogos/'+encodeURIComponent(game.file),{cache:'default'});
-  if(!response.ok)throw Error('Não encontrei o arquivo jogos/'+game.file+' (HTTP '+response.status+').');
-  const blob=await response.blob();
-  if(!blob.size)throw Error('O arquivo de jogo está vazio.');
-  await waitForDrop();
-  status('Abrindo '+game.name+'...');
-  sendFile(new File([blob],game.file,{type:'application/octet-stream'}));
- }catch(e){error((e&&e.message)||String(e));}
+  if(!response.ok)throw Error('Não encontrei jogos/'+game.file+' (HTTP '+response.status+').');
+  const bytes=new Uint8Array(await response.arrayBuffer());
+  if(!bytes.length)throw Error('O arquivo de jogo está vazio.');
+  // Ao contrário do método anterior, não simula um arrastar-e-soltar após iniciar.
+  // O SkyEmu suporta inicialização com caminho de ROM em argv[1].
+  // Stage via Emscripten preRun antes de o main() do motor iniciar: funciona sem
+  // depender dos eventos de drag/drop, que não são uniformes no Android.
+  preloadedRom={file:game.file,bytes};
+  Module.arguments=['/'+game.file];
+  Module.preRun=[function(){
+   if(!preloadedRom)throw Error('ROM não preparada.');
+   FS.writeFile('/'+preloadedRom.file,preloadedRom.bytes);
+   // Libera a referência JS; o emulador mantém os dados na memória virtual até o carregamento.
+   preloadedRom=null;
+  }];
+  status('Iniciando SkyEmu com '+game.name+'...');
+  await loadSkyEngine();
+  await deadline(engineReady,60000,'O SkyEmu não concluiu a inicialização.');
+  status('Abrindo '+game.name+' no SkyEmu...');
+  await deadline(nativeRomStarted,20000,'O SkyEmu abriu, mas não confirmou o carregamento do jogo. Tente recarregar ou abrir o arquivo pelo menu.');
+  if(nativeRomError)throw Error('SkyEmu recebeu o jogo, mas não conseguiu abrir a ROM.');
+  showGame();
+ }catch(e){error((e&&e.message)||String(e))}
 }
 // A compilação oficial web do SkyEmu usa este objeto global antes do SkyEmu.js.
 var Module={
  canvas:$('#canvas'),
  locateFile(name){return skySource+name},
- print(text){console.log('[SkyEmu]',text)},
- printErr(text){console.error('[SkyEmu]',text)},
+ print(text){reportSkyOutput(text)},
+ printErr(text){reportSkyOutput(text,true)},
  onRuntimeInitialized(){runtimeResolve()},
  setStatus(text){if(text&&text!=='Running...')status(text)},
  monitorRunDependencies(){}
@@ -222,10 +254,6 @@ window.addEventListener('error',event=>{if(!ready)error('Falha ao iniciar o SkyE
 window.addEventListener('unhandledrejection',event=>{if(!ready)error('Falha no SkyEmu: '+String(event.reason?.message||event.reason))});
 // Os arquivos ficam apenas no cache do navegador, sem acréscimos ao repositório.
 // Se a CDN falhar, tenta o conteúdo bruto da mesma revisão do GitHub.
-loadSkyEngine().catch(e=>{
- error(e.message||String(e));
- runtimeReject(e);
-});
 bootGame();
 </script>
 </body>
