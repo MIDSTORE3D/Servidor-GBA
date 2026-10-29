@@ -122,7 +122,7 @@ function setInitialTouchProfile(){
   if(!needsUpdate)return; // Já está correto; não faz gravação desnecessária.
   v.setUint32(56,0,true); // Hide when inactive: desligado, sempre visíveis
   v.setFloat32(60,0.85,true); // Opacity: 85%
-  v.setFloat32(72,0.80,true); // Scale: 80%
+  v.setFloat32(72,0.80,true); // Scale: 70%
   FS.writeFile(path,data);
   // Persiste o perfil no IndexedDB. O arquivo é gerenciado pelo próprio SkyEmu.
   setTimeout(()=>{
