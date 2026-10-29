@@ -80,6 +80,74 @@ let runtimeResolve;
 let nativeRomResolve;
 let nativeRomError=false;
 let preloadedRom=null;
+
+// Perfil visual dos controles nativos do SkyEmu, sem sobrepor botões HTML.
+// O SkyEmu guarda os ajustes em /offline/user_settings.bin (estrutura de 1024 bytes).
+// Depois que o IDBFS carrega as preferências anteriores, aplicamos o perfil uma
+// única vez por navegador, preservando as demais preferências do jogador.
+const TOUCH_PROFILE_KEY='ServidorGBA_touch_profile_2026_01';
+function setInitialTouchProfile(){
+ try{
+  try{if(localStorage.getItem(TOUCH_PROFILE_KEY)==='applied')return;}catch(e){}
+  const path='/offline/user_settings.bin';
+  let data=null;
+  try{data=FS.readFile(path);}catch(e){}
+  let fresh=!data||data.byteLength!==1024;
+  if(fresh){
+   // Arquivo de configurações da versão de distribuição do SkyEmu (1024 bytes).
+   // Base v2: o próprio SkyEmu completa os campos das versões v3 e v4.
+   data=new Uint8Array(1024);
+   const d=new DataView(data.buffer);
+   d.setFloat32(4,0.80,true); // volume nativo padrão
+   d.setUint32(12,2,true); // settings_file_version
+   const rgb=[0x81,0x8F,0x38,0x64,0x7D,0x43,0x56,0x6D,0x3F,0x31,0x4A,0x2D];
+   for(let i=0;i<4;i++)d.setUint32(16+i*4,rgb[i*3]|rgb[i*3+1]<<8|rgb[i*3+2]<<16,true);
+   d.setFloat32(32,1,true); // ghosting
+   d.setFloat32(36,1,true); // color correction
+   d.setUint32(44,3,true); // screen shader
+   d.setUint32(56,1,true); // controles ocultos quando inativos (original)
+   d.setFloat32(60,0.50,true); // opacidade original
+   d.setUint32(64,1,true); // barra nativa
+   d.setFloat32(72,1,true); // escala original
+   d.setUint32(76,1,true); // turbo
+   d.setUint32(92,8080,true);
+   d.setUint32(100,1,true); // evitar sobreposição no retrato
+  }
+  const v=new DataView(data.buffer,data.byteOffset,data.byteLength);
+  const version=v.getUint32(12,true);
+  // Estrutura reconhecida nesta compilação; não mexer em dados inesperados.
+  if(version<2||version>4){console.warn('[Servidor-GBA] Preferências em formato anterior; mantendo os valores existentes.');return;}
+  v.setUint32(56,0,true); // Hide when inactive: desligado, botões sempre visíveis
+  v.setFloat32(60,0.85,true); // Opacity: botões mais nítidos
+  v.setFloat32(72,0.80,true); // Scale: botões menores
+  FS.writeFile(path,data);
+  try{localStorage.setItem(TOUCH_PROFILE_KEY,'applied');}catch(e){}
+  // Persiste o perfil no IndexedDB. O arquivo é gerenciado pelo próprio SkyEmu.
+  setTimeout(()=>{
+   try{FS.syncfs(false,function(err){if(err)console.warn('[Servidor-GBA] Não foi possível guardar os controles:',err);});}
+   catch(e){console.warn('[Servidor-GBA] Salvamento dos controles:',e);}
+  },100);
+  console.log('[Servidor-GBA] Controles nativos ajustados: escala 0,80; opacidade 0,85; sempre visíveis.');
+ }catch(e){console.warn('[Servidor-GBA] Ajuste de controles indisponível; motor mantido intacto.',e);}
+}
+function hookTouchProfile(){
+ // A build oficial chama FS.syncfs(true) antes de recarregar as configurações.
+ // Interceptamos somente essa primeira sincronização; ROM, saves e core ficam intactos.
+ const nativeSync=FS.syncfs;
+ let armed=true;
+ FS.syncfs=function(populate,callback){
+  if(populate&&armed){
+   armed=false;
+   FS.syncfs=nativeSync;
+   return nativeSync.call(FS,populate,function(err){
+    if(!err)setInitialTouchProfile();
+    if(typeof callback==='function')callback(err);
+   });
+  }
+  return nativeSync.call(FS,populate,callback);
+ };
+}
+
 const nativeRomStarted=new Promise(resolve=>{nativeRomResolve=resolve});
 function reportSkyOutput(value,isError=false){
  const message=String(value||'');
@@ -180,6 +248,7 @@ async function bootGame(){
   Module.preRun=[function(){
    if(!preloadedRom)throw Error('ROM não preparada.');
    FS.writeFile('/'+preloadedRom.file,preloadedRom.bytes);
+   hookTouchProfile();
    // Libera a referência JS; o emulador mantém os dados na memória virtual até o carregamento.
    preloadedRom=null;
   }];
