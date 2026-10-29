@@ -5,6 +5,7 @@
   "start_url": "./?jogo=001",
   "scope": "./",
   "display": "fullscreen",
+  "orientation": "landscape",
   "background_color": "#10131b",
   "theme_color": "#10131b",
   "icons": [

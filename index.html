@@ -14,12 +14,10 @@
 html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);overscroll-behavior:none}
 body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--fg);user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
 #canvas{position:fixed;inset:0;display:block;width:100vw;height:100dvh;background:#07080d;touch-action:none}
-/* No modo NFC, o canto do menu nativo do SkyEmu vira somente um botão de tela cheia.
-   A interface de escolha de ROMs não é mostrada ao jogador. ?configurar=1 libera
-   temporariamente a interface nativa para ajustar escala/opacidade dos controles. */
-#fullscreenButton{position:fixed;top:max(2px,env(safe-area-inset-top));left:max(2px,env(safe-area-inset-left));z-index:25;width:56px;height:46px;padding:0;border:0;border-radius:0 0 10px 0;background:#202020;color:#eee;font-size:25px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-#fullscreenButton[hidden]{display:none!important}
-#fullscreenButton:focus-visible{outline:2px solid #9489ed;outline-offset:2px}
+/* Bloqueia apenas o botão nativo de escolha de ROMs.
+   No modo ?configurar=1, libera o menu interno do SkyEmu para manutenção. */
+#menuShield{position:fixed;top:max(2px,env(safe-area-inset-top));left:max(2px,env(safe-area-inset-left));z-index:25;width:56px;height:46px;background:#202020;pointer-events:auto;touch-action:none}
+#menuShield[hidden]{display:none!important}
 #loading{position:fixed;z-index:30;inset:0;display:grid;place-content:center;gap:14px;padding:22px;text-align:center;background:#0e101ae8}
 #loading[hidden]{display:none!important}
 #loading h1{font-size:19px;line-height:1.3;margin:0}
@@ -54,7 +52,7 @@ body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(
 </head>
 <body>
 <canvas id="canvas" tabindex="0" aria-label="Emulador SkyEmu Game Boy Advance" oncontextmenu="event.preventDefault()"></canvas>
-<button id="fullscreenButton" type="button" aria-label="Abrir tela cheia" title="Tela cheia">⛶</button>
+<div id="menuShield" aria-hidden="true"></div>
 <section id="loading" aria-live="polite">
 <h1>Servidor-GBA · SkyEmu</h1>
 <p id="loadStatus">Preparando o emulador...</p>
@@ -66,7 +64,7 @@ body{font:14px/1.45 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(
 const $=s=>document.querySelector(s);
 const opts=new URLSearchParams(location.search);
 const modoConfiguracao=opts.get('configurar')==='1';
-if(modoConfiguracao)document.querySelector('#fullscreenButton').hidden=true;
+if(modoConfiguracao)document.querySelector('#menuShield').hidden=true;
 // SkyEmu compilado, mantido intacto; menu nativo parcialmente encoberto no modo NFC.
 // Os JS/WASM são validados antes de iniciar o motor; ROM é carregada via argv na inicialização.
 const SKY_REF='155cb39a6ec3e32d2fe92b3e2f6c31333b87bd56';
@@ -82,25 +80,6 @@ let runtimeResolve;
 let nativeRomResolve;
 let nativeRomError=false;
 let preloadedRom=null;
-const isMobile=matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-let firstFullscreenAttempted=false;
-function inFullscreen(){return !!(document.fullscreenElement||document.webkitFullscreenElement||matchMedia('(display-mode:fullscreen)').matches)}
-async function requestFullscreenMode(){
- // Navegadores móveis exigem ativação do usuário. Não promete tela cheia no carregamento de uma aba.
- if(inFullscreen())return;
- try{
-  const el=document.documentElement;
-  if(el.requestFullscreen)await el.requestFullscreen({navigationUI:'hide'});
-  else if(el.webkitRequestFullscreen)el.webkitRequestFullscreen();
- }catch(e){console.warn('[Servidor-GBA] Tela cheia requer interação ou instalação como aplicativo.',e)}
-}
-async function tryEnterFullscreenOnce(){
- if(!isMobile||firstFullscreenAttempted||inFullscreen()||modoConfiguracao) return;
- firstFullscreenAttempted=true;
- await requestFullscreenMode();
- 
-}
-
 const nativeRomStarted=new Promise(resolve=>{nativeRomResolve=resolve});
 function reportSkyOutput(value,isError=false){
  const message=String(value||'');
@@ -224,10 +203,9 @@ var Module={
  monitorRunDependencies(){}
 };
 // O jogador não escolhe ROMs: a tag NFC define ?jogo=ID. Sem menu de seleção no HTML.
-$('#fullscreenButton').addEventListener('click',()=>{requestFullscreenMode()});
-// Ao tocar no jogo em aba comum, Chrome pode permitir a entrada em tela cheia.
-// Em instalação PWA com "display: fullscreen", a tela cheia é aplicada na abertura.
-document.addEventListener('pointerdown',event=>{if(event.target===document.querySelector('#fullscreenButton'))return;tryEnterFullscreenOnce()},{passive:true,capture:true});
+// Tela cheia e orientação horizontal são solicitadas apenas pelo manifesto
+// quando o navegador iniciar o site como PWA instalado.
+// Na abertura normal por NFC não solicitamos fullscreen nem rotação.
 $('#retry').addEventListener('click',()=>location.reload());
 window.addEventListener('error',event=>{if(!ready)error('Falha ao iniciar o SkyEmu: '+(event.message||'erro no navegador'))});
 window.addEventListener('unhandledrejection',event=>{if(!ready)error('Falha no SkyEmu: '+String(event.reason?.message||event.reason))});
